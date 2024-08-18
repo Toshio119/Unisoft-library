@@ -1,13 +1,13 @@
 /******************************************************************************
  *                                                                            *
- *                           Toshio's C Library                               *
+ *                           Toshio's C Library: General utilities            *
  *                                                                            *
  *                        Created on: 22-07-2024                              *
  *                                                                            *
  *  Description: This is a C library that contains useful functions for       *
  *  C programs.                                                               *
  *  Notes: Let me know what functions to add more and iam sorry for           *                                                     
- *  not being able to write comment lines.these are the only ones that remain.*
+ *  not being able to write comment lines.these are the only ones that remain.li*
  *                                                                            *
  ******************************************************************************/
 #ifndef UTILIB_H
@@ -22,29 +22,13 @@
 #include <ctype.h>
 #include <setjmp.h>
 #include <sys/wait.h>
-
-#define scuInput(x, y, max) \
-  while (scanf(x, &y) != 1 || y <= 0 || y > max) { \
-    printf("Invalid input. Please try again.\n"); \
-    while (getchar() != '\n'); \
-  }
-
-
-#define ranInput(x, y, min, max) \
-  while (scanf(x, &y) != 1 || y < min || y > max) { \
-    printf("Invalid input. Please try again.\n"); \
-    while (getchar() != '\n'); \
-  }
-
-
-#define errInput(x, y, max, prompt)\
-    while (scanf(x, &y) != 1 || y <= 0 || y > max) { \
-        printf(prompt); \
-        while (getchar() != '\n'); \
-}
+#define true 1
+#define false 0
+#define bool _Bool
 
 #define with(ptr, cleanup) \
  for (int __done__ = ((ptr) ? 0 : (perror("Error"), 1)); !__done__; __done__ = (cleanup(ptr), 1))
+
 
 #define swap(x, y)        \
 do {                      \
@@ -53,6 +37,7 @@ do {                      \
     (y) = _tmp;           \
 } while (0)
 
+
 #define MAX(a, b, type) \
 ({                      \
     type _a = (a);      \
@@ -60,12 +45,14 @@ do {                      \
     _a > _b ? _a : _b;  \
 })
 
+
 #define MIN(a, b, type) \
 ({                      \
     type _a = (a);      \
     type _b = (b);      \
     _a < _b ? _a : _b;  \
 })
+
 
 #define size_arr(arr) (sizeof(arr) / sizeof((arr)[0]))
 
@@ -75,9 +62,9 @@ do {                      \
 #define Throw(expression) longjmp(__jmpbuf, (expression))
 jmp_buf __jmpbuf;
 
-/* Read a string from standard input until a specified delimiter or maximum size is reached */
-__attribute__((always_inline)) inline long int utilstrIn(char *str, size_t size, const char specifier) {
-    if (!str || size <= 0) 
+/* utilstrIn: Read a string from standard input until a specified delimiter or maximum size is reached */
+__attribute__((always_inline)) inline long int utilstrIn(char *__restrict str, long int size, const char specifier) {
+    if (!str || size <= 0 || !specifier) 
         return -1;
     size_t i = 0;
     char ch = '\0';
@@ -99,13 +86,13 @@ __attribute__((always_inline)) inline long int utilstrIn(char *str, size_t size,
 }
 
 
-/* Split a string into tokens based on a given delimiter */
+/* split: Split a string into tokens based on a given delimiter */
 __attribute__((always_inline)) inline char** split(const char *str, const char *delimiter, int *count) {
     if (!str || !delimiter || !count) 
       return NULL;
     char *temp = strdup(str);
-    if (!temp)   //A special  thanks to WindLother who has provided this split function
-      return NULL;  
+    if (!temp)   //A special thanks to WindLother who has provided this split function
+      return NULL;  // replit: @WindLother
 
     char **result = NULL;    
     *count = 0;
@@ -124,10 +111,10 @@ __attribute__((always_inline)) inline char** split(const char *str, const char *
     return result;
 }
 
-/* Prompt the user with a message and read a line of input into a dynamically allocated string */
-__attribute__((always_inline)) inline long int utilreadln(const char *__restrict prompt, char **str) {
-  if (!prompt || !str) 
-    return -1;
+/* utilreadln: Prompt the user with a message and read a line of input into a dynamically allocated string */
+__attribute__((always_inline)) inline char *utilreadln(const char *__restrict prompt) {
+  if (!prompt) 
+    return NULL;
 
   fputs(prompt, stdout);
 
@@ -135,7 +122,7 @@ __attribute__((always_inline)) inline long int utilreadln(const char *__restrict
   char *buff = (char *)malloc(size), ch = '\0';
   
   if (!buff) 
-    return -1;
+    return NULL;
   
   while ((ch = fgetc(stdin)) != EOF && ch != '\n') {
     if (len + 1 >= size) {
@@ -143,7 +130,7 @@ __attribute__((always_inline)) inline long int utilreadln(const char *__restrict
       char *newptr = (char*)realloc(buff, size);
       if (!newptr) {
         free(buff);
-        return -1;
+        return NULL;
       }
       buff = newptr;
     }
@@ -152,26 +139,25 @@ __attribute__((always_inline)) inline long int utilreadln(const char *__restrict
 
   if (len == 0 && ch == EOF) {
     free(buff);
-    return -1;
+    return NULL;
   }
 
   buff[len] = '\0';
-  *str = buff;
 
-  return len;
+  return buff;
 }
 
-/* Clear console screen */
-__attribute__((always_inline)) inline void utilclear(void) {
+/* utilclear: Clear console screen */
+void utilclear(void) {
   fputs("\033[2J\033[1;1H", stdout); fputs("\033c", stdout);
 }
 
-/* Read a content of a file into a buffer */
-__attribute__((always_inline)) inline long int utilfile_read(char *buffer, size_t size, FILE *file) {
+/* utilfile_read: Read a content of a file into a buffer */
+__attribute__((always_inline)) inline long int utilfile_read(char *__restrict buffer, size_t size, FILE *__restrict file) {
     if(!buffer || size <= 0 || !file)
       return -1;
     long int bytesRead = fread(buffer, 1, size - 1, file);
-    if (bytesRead == 0 || ferror(file)) {
+    if (!bytesRead || ferror(file)) {
         perror("Error reading file");
         return -1;
     }
@@ -195,9 +181,10 @@ size_t length(char **strings, int count, const char *delimiter) {
   return total_length + 1; 
 }
 
-/* Left shift an array of elements by one position */
+
+/* utilLshift: Left shift an array of elements by one position */
 __attribute__((always_inline)) inline void utilLshift(void *arr, size_t datatype_size, size_t size) {
-      if (size <= 0)
+      if (!arr || size <= 0 || !datatype_size)
         return;
 
       void *temp = malloc(datatype_size);
@@ -211,9 +198,9 @@ __attribute__((always_inline)) inline void utilLshift(void *arr, size_t datatype
   free(temp);
 }
 
-/* Right shift an array of elements by one position */
+/* utilRshift: Right shift an array of elements by one position */
 __attribute__((always_inline)) inline void utilRshift(void *arr, size_t datatype_size, size_t size){
-      if (size <= 0)
+      if (!arr ||size <= 0 || !datatype_size)
         return;
      
       void *temp = malloc(datatype_size);
@@ -228,12 +215,12 @@ __attribute__((always_inline)) inline void utilRshift(void *arr, size_t datatype
 }
 
 
-/* Trim leading and trailing whitespace from a string */
-__attribute__((always_inline)) inline void utilstrTrim(char *__restrict str , size_t len) {
-    if (!str || len <= 0) 
-        return;
+/* utilstrTrim: Trim the leading and trailing whitespace from a string */
+__attribute__((always_inline)) inline char *utilstrTrim(char *__restrict str) {
+    if (!str) 
+        return NULL;
   
-    char *start = str, *end = str + len - 1;
+    char *start = str, *end = str + strlen(str) - 1;
     
     while (isspace(*start)) 
       start++;
@@ -243,46 +230,88 @@ __attribute__((always_inline)) inline void utilstrTrim(char *__restrict str , si
   
       *(end + 1) = '\0';
     memmove(str, start, end - start + 2);
+    return str;
 }
 
-/* Convert a string to uppercase */
-__attribute__((always_inline)) inline char* utilstrTu(char *__restrict str, size_t len) {
-  if(!str || len <= 0)
+/* utilstrTU: Convert a string to uppercase */
+__attribute__((always_inline)) inline char* utilstrTU(char *__restrict str) {
+  if(!str)
     return NULL;
-       for(size_t i = 0; i < len; i++)
+  long int i = -1;
+       while(str[++i] != '\0') 
          str[i] = toupper(str[i]);
+       
       return str;
 }
 
-/* Convert a string to lowercase */
-__attribute__((always_inline)) inline char* utilstrLo(char *__restrict str, size_t len) {
-   if(!str || len <= 0)
+/* utilstrTL: Convert a string to lowercase */
+__attribute__((always_inline)) inline char* utilstrTL(char *__restrict str) {
+   if(!str)
       return NULL;
-       for(size_t i = 0; i < len; i++)
-         str[i] = tolower(str[i]);
+    long int i = -1;
+       while(str[++i] != '\0') 
+          str[i] = tolower(str[i]);
+        
       return str;
 }
 
-/* Replace all occurrences of a character in a string with another character */
-__attribute__((always_inline)) inline long int utilstrRepc(char *str, const char oldchar, const char newchar) {
+/* utilstrRepc: Replace all occurrences of a character in a string with a another character */
+__attribute__((always_inline)) inline long int utilstrRepc(char *__restrict str, const char oldchar, const char newchar) {
     if(!str || !oldchar || !newchar) 
        return -1;
-    long int j = 0;
-    for (j = 0; str[j] != '\0'; j++) 
-            (str[j] == oldchar) ? str[j] = newchar : 0;
+    long int j = -1;
+    while(str[++j] != '\0')
+      if(str[j] == oldchar)
+        str[j] = newchar;
+  
   return j;
 }
 
 
-/* Join an array of strings into a single string, separated by a delimiter */
-__attribute__((always_inline)) inline char* utilstrjoin(char **strings, int count, const char *delimiter) {
+/* utilstrReps: Replace all occurrences of a substing in a string with a another substring */
+__attribute__((always_inline)) inline char *utilstrReps(char *__restrict str, long int strsize,const char *oldstr,const char *newstr) {
+  if(!str || !oldstr || !newstr || strsize <= 0) // A special thanks to Code vault from youtube who has designed 
+      return NULL;                                 // This string replacement function youtube: @CodeVault
+  char *Temp = NULL;
+  // I have made some optimizations-
+  // to make the code perform faster such as reducing function call's from strlen
+  long int i = strlen(newstr), j = strlen(oldstr), k = 0;
+  while((Temp = strstr(str, oldstr)) != NULL) {
+  k = strlen(Temp);
+  if(strsize < k + (i - j) + 1)
+    return NULL;
+  
+  memmove(Temp + i, Temp + j, k - j + 1);
+  memcpy(Temp, newstr, i);
+  }
+  return NULL;
+}
+
+
+/*utilstrFilter: Filter out the unwanted substring's from a string*/
+__attribute__((always_inline)) inline char *utilstrFilter(const char *__restrict str, const char *__restrict filter) {
+    if(!str || !filter)
+      return NULL;
+
+  char *Temp = NULL;
+  long int i = strlen(filter), j = 0;
+  while((Temp = strstr(str, filter)) != NULL) 
+    j = strlen(Temp),
+    memmove(Temp, Temp + i, j - i + 1);
+
+  return NULL;
+}
+
+
+/* utilstrjoin: Join an array of strings into a single string, separated by a delimiter */
+__attribute__((always_inline)) inline char* utilstrjoin(char **__restrict strings, int count, const char *__restrict delimiter) {
       if(!strings || !delimiter || !count)
          return NULL;
 
         size_t total_length = length(strings, count, delimiter);
         char *result = (char*)malloc(total_length);
         if (result == NULL) {
-        perror("malloc failed");
+        perror("malloc");
          exit(EXIT_FAILURE);
         }
 
@@ -294,6 +323,20 @@ __attribute__((always_inline)) inline char* utilstrjoin(char **strings, int coun
         strcat(result, delimiter);
       }
        return result;
+}
+
+
+int compare_long(const void *a, const void *b){
+    long a1 = *(const long *)a;
+    long b1 = *(const long *)b;
+    return (a1 > b1) - (a1 < b1);
+}
+
+
+int compare_char(const void *a, const void *b){
+  char a1 = *(const char *)a;
+  char b1 = *(const char *)b;
+  return (a1 > b1) - (a1 < b1);
 }
 
 
@@ -321,11 +364,11 @@ int compare_double(const void *a, const void *b) {
 int compare_string(const void *a, const void *b) {
   const char *a1 = *(const char **)a;
   const char *b1 = *(const char **)b;
-  return strcmp(a1, b1);
+  return -strcmp(a1, b1);
 }
 
-// This function sorts an array based on the given mode ('i' for int, 'd' for double, 'f' for float, 's' for string).
-// It uses the qsort function and corresponding comparison functions for different data types.
+/*  utilSort: sorts an array based on the given mode ('i' for int, 'd' for double, 'f' for float, 's' for string).
+It uses the qsort function and corresponding comparison functions for different data types. */
 __attribute__((always_inline)) inline void utilSort(void *array, size_t length, const char mode) {
    if(!array || length <= 0 || !mode)
       return;
@@ -341,16 +384,22 @@ __attribute__((always_inline)) inline void utilSort(void *array, size_t length, 
              qsort(array, length, sizeof(float), compare_float);
             break;
         case 's': // 's' for strings
-            qsort(array, length, sizeof(char *), compare_string);
+            qsort(array, length, sizeof(char*), compare_string);
             break;
+        case 'l': // 'l' for longs
+            qsort(array, length, sizeof(long), compare_long);
+            break;
+        case 'c': // 'c' for charaters
+            qsort(array, length, sizeof(char), compare_char);
+           break;
         default:
             fprintf(stderr, "Invalid mode for util_qsort: %c\n", mode);
             break;
     }
 }
 
-// This function executes a shell command using fork and execl in a child process.
-// It handles errors during fork, execl, and waits for the child process to complete.
+/* Deltaexe: execute a shell command using fork and execl in a child process.
+It handles errors during fork, execl, and waits for the child process to complete. */
 __attribute__((always_inline)) inline int Deltaexe(const char *command) {
   if (command == NULL) { // Here iam also going to use fputs because iam just printing a string 
       fputs("Deltaexe: Command's cannot be NULL\n", stderr);
@@ -386,7 +435,7 @@ __attribute__((always_inline)) inline int Deltaexe(const char *command) {
     }
 }
 
-// This function prompts the user with a message and reads a double value from standard input.
+/* utilScan: prompt the user with a message and read value from the standard input. */
 __attribute__((always_inline)) inline double utilScan(const char *__restrict prompt) {
     if (!prompt) 
       return -1;
@@ -405,10 +454,59 @@ __attribute__((always_inline)) inline double utilScan(const char *__restrict pro
                 return value;  
 
         } else {
-            return -1; 
+            return perror("Error"), -1; 
         }
     }
 }
+
+
+double get_value(void) { // Helperfunction
+  char buff[75];
+  if(fgets(buff, 75,stdin) != NULL)
+    return atof(buff);
+  else
+    return perror("Error:"), -1;
+}
+
+
+/* setlimit: Enforce a minimum value of 1 and a maximum value for a given input. */
+double setlimit(double utilscan, double max) {
+  while(utilscan <= 0 || utilscan > max) {
+    printf("Invalid input .Please enter a number between 1 and %.1lf: ", max);
+    utilscan = get_value();
+  }
+  return utilscan;
+}
+
+/*setRange: Enforce a minimum and maximum value for a given input*/
+double setRange(double utilscan, double min, double max) {
+  while(utilscan < min || utilscan > max){
+    printf("Invalid input .Please enter a number between %.1lf and %.1lf: ", min, max);
+    utilscan = get_value();
+  }
+  return utilscan;
+}
+
+/* setlimit_err: Enforce a minimum value of 1 and a maximum value for a given input,
+ *              using a custom error message. */
+double setlimit_err(double utilscan, double max, const char *__restrict prompt) {
+  while(utilscan <= 0 || utilscan > max) {
+    fputs(prompt, stdout);
+    utilscan =get_value();
+  }
+  return utilscan;
+}
+
+/* setRange_err: Enforce a minimum and maximum value for a given input, using a
+ *               custom error message. */
+double setRange_err(double utilscan, double min, double max, const char *__restrict prompt) {
+  while(utilscan < min || utilscan > max){
+    fputs(prompt, stdout);
+    utilscan = get_value();
+  }
+  return utilscan;
+}
+
 
 
 __attribute__((always_inline)) inline int TrybySearch(int arr[], int n, int target) {
@@ -425,8 +523,8 @@ __attribute__((always_inline)) inline int TrybySearch(int arr[], int n, int targ
     } return -1; 
 }
 
-// This function renames a file by copying its contents to a new file and deleting the old file.
-// It handles errors in file operations and ensures the old file is unlinked if the copy is successful.
+/* utilRename : rename a file by copying its contents to a new file and deleting the old file.
+It handles errors in file operations and ensures the old file is unlinked if the copy is successful.*/
 __attribute__((always_inline)) inline void utilRename(const char *__restrict oldfilename, const char *__restrict newfilename) {
   if(!oldfilename || !newfilename)
         return;
@@ -446,30 +544,46 @@ __attribute__((always_inline)) inline void utilRename(const char *__restrict old
   
     if (unlink(oldfilename) != 0) 
        perror("Error deleting old file");
-    
+   
     fclose(ptr1);
     fclose(ptr2);
 }
 
-// This function returns the size of a file in bytes by seeking to the end of the file and using ftell.
-// It handles errors in file opening and seeking operations.
-__attribute__((always_inline)) inline long int utilGetSize(const char *__restrict filename) {
-    if(!filename)
-      return -1;
-    FILE *ptr = NULL;
-    if ((ptr = fopen(filename,"rb")) == NULL) 
-        return perror("Error: Unable to open file"), -1;
 
-    if(fseek(ptr, 0, SEEK_END) != 0)
+/* utilCountln: Count the no of lines of a given file */
+__attribute__((always_inline)) inline long int utilCountln(FILE *stream){
+    if(!stream)
+      return -1;
+  
+    long int count = 0;
+    char ch = '\0';
+  while((ch = fgetc(stream)) != EOF)
+    if(ch == '\n') 
+       count++;
+  
+   if(count == 0)
+     return perror("Error"), -1;
+    rewind(stream);
+  return count;
+} 
+
+
+/* utilGetSize: return the size of a file in bytes by seeking to the end of the file and using ftell.
+ It handles errors in file opening and seeking operations. */
+__attribute__((always_inline)) inline long int utilGetSize(FILE *stream) {
+    if(!stream)
+      return -1;
+   
+    if(fseek(stream, 0, SEEK_END) != 0)
         return perror("Error: Unable to seek to end of file"), -1;
 
-    long int fileSize = ftell(ptr);
-    fclose(ptr);
+    long int fileSize = ftell(stream);
+      rewind(stream);
     return fileSize;
 }
 
-// This function copies the contents of one file to another.
-// It handles errors in file opening and ensures all data is copied successfully.
+/* utilFilecpy: copy the contents of one file to another.
+It handles errors in file opening and ensures all data is copied successfully. */
 __attribute__((always_inline)) inline void utilFilecpy(const char *src, const char *dest) {
   if(!src || !dest) 
       return;
@@ -502,9 +616,10 @@ typedef struct LinkedList {
     size_t size;
 } LinkedList;
 
-//Create a linked list 
+
+/* Create a linked list usage: Linked list *<label> = createLinkedList(); */
 __attribute__((always_inline)) inline LinkedList* createLinkedList(void) {
-    LinkedList* list = (LinkedList*)malloc(sizeof(LinkedList));
+    LinkedList *__restrict list = (LinkedList*)malloc(sizeof(LinkedList));
     if (list == NULL) {
         fputs("Error: Memory allocation for linked list failed.\n", stderr);
         return NULL;
@@ -515,7 +630,9 @@ __attribute__((always_inline)) inline LinkedList* createLinkedList(void) {
     return list;
 }
 
-__attribute__((always_inline)) inline int insertNode(LinkedList* list, int data, int at_end) {
+
+/* Add a node to the end of the linked list */
+__attribute__((always_inline)) inline int insertNode(LinkedList *__restrict list, int data, int at_end) { //Helper function 
     if (list == NULL) {
         fputs("Error: List is NULL.\n", stderr);
         return -1;
@@ -544,18 +661,21 @@ __attribute__((always_inline)) inline int insertNode(LinkedList* list, int data,
     return 0;
 }
 
-//add a element at the end of the list
-__attribute__((always_inline)) inline int append(LinkedList* list, int data) {
+
+/* add a element at the end of the list */
+__attribute__((always_inline)) inline int append(LinkedList *__restrict list, int data) {
     return insertNode(list, data, 1);
 }
 
-//add a element to the beggning of the list
-__attribute__((always_inline)) inline int prepend(LinkedList* list, int data) {
+
+/* add a element to the beggning of the list */
+__attribute__((always_inline)) inline int prepend(LinkedList *__restrict list, int data) {
     return insertNode(list, data, 0);
 }
 
-// Remove a element from the list 
-__attribute__((always_inline)) inline int removeElement(LinkedList* list, int data) {
+
+/* Remove a element from the list */
+__attribute__((always_inline)) inline int removeElement(LinkedList *__restrict list, int data) {
     if (list == NULL || list->head == NULL) {
         fputs("Error: List is NULL or empty.\n", stderr);
         return -1;
@@ -588,13 +708,15 @@ __attribute__((always_inline)) inline int removeElement(LinkedList* list, int da
     return -1;
 }
 
-//Get size of the list
-__attribute__((always_inline)) inline size_t getSize(LinkedList* list) {
+
+/* Get size of the list */
+__attribute__((always_inline)) inline size_t getSize(LinkedList *__restrict list) {
     return (list != NULL) ? list->size : 0;
 }
 
-//print the content's of the list 
-__attribute__((always_inline)) inline void printList(LinkedList* list) {
+
+/* print the content's of the list */
+__attribute__((always_inline)) inline void printList(LinkedList *__restrict list) {
     if (list == NULL) {
         fputs("Error: List is NULL.\n", stderr);
         return;
@@ -610,8 +732,9 @@ __attribute__((always_inline)) inline void printList(LinkedList* list) {
     printf("]\n");
 }
 
-// Free the allocated memory of the list 
-__attribute__((always_inline)) inline void freeList(LinkedList* list) {
+
+/* Free the allocated memory of the list */
+__attribute__((always_inline)) inline void freeList(LinkedList *__restrict list) {
     if (list == NULL) {
         fputs("Error: List is NULL.\n", stderr);
         return;
@@ -622,13 +745,13 @@ __attribute__((always_inline)) inline void freeList(LinkedList* list) {
         liNode* nextNode = current->next;
         free(current);
         current = nextNode;
-    }
+    } 
     free(list);
 }
-// Merge Sort Functions for the linked list
 
 
-void splitList(liNode* source, liNode** frontRef, liNode** backRef) { //Helper function 1
+/* Merge Sort Functions for the linked list */
+void splitList(liNode *__restrict source, liNode **__restrict frontRef, liNode **__restrict backRef) { //Helper function 1
     liNode* fast;
     liNode* slow;
     if (source == NULL || source->next == NULL) {
@@ -653,7 +776,7 @@ void splitList(liNode* source, liNode** frontRef, liNode** backRef) { //Helper f
 }
 
 
-liNode* sortedMerge(liNode* a, liNode* b) { //Helper function 2
+liNode* sortedMerge(liNode *__restrict a, liNode *__restrict b) { //Helper function 2
     if (a == NULL) return b;
     if (b == NULL) return a;
 
@@ -667,7 +790,7 @@ liNode* sortedMerge(liNode* a, liNode* b) { //Helper function 2
 }
 
 
-liNode* mergeSort(liNode* head) { //Helper function 3
+liNode* mergeSort(liNode *__restrict head) { //Helper function 3
     if (head == NULL || head->next == NULL) {
         return head;
     }
@@ -682,8 +805,9 @@ liNode* mergeSort(liNode* head) { //Helper function 3
     return sortedMerge(a, b);
 }
 
-// Sort the linked list using merge sort
-__attribute__((always_inline)) inline void Sortlist(LinkedList* list) {
+
+/* Sort the linked list using merge sort */
+__attribute__((always_inline)) inline void Sortlist(LinkedList *__restrict list) {
     if (list == NULL || list->head == NULL) {
         return;
     }
@@ -698,4 +822,4 @@ __attribute__((always_inline)) inline void Sortlist(LinkedList* list) {
 }
 
 
-#endif 
+#endif //UTILIB_H
