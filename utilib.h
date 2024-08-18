@@ -22,6 +22,7 @@
 #include <ctype.h>
 #include <setjmp.h>
 #include <sys/wait.h>
+#include <time.h>
 #define true 1
 #define false 0
 #define bool _Bool
@@ -62,27 +63,33 @@ do {                      \
 #define Throw(expression) longjmp(__jmpbuf, (expression))
 jmp_buf __jmpbuf;
 
+
 /* utilstrIn: Read a string from standard input until a specified delimiter or maximum size is reached */
-__attribute__((always_inline)) inline long int utilstrIn(char *__restrict str, long int size, const char specifier) {
+__attribute__((always_inline)) inline long int utilstrIn(char *__restrict str, long int size, const char *specifier) {
     if (!str || size <= 0 || !specifier) 
         return -1;
-    size_t i = 0;
+    long int bytes_read = 0;
     char ch = '\0';
-
-    switch (specifier) {
-        case ' ': 
-            while ((ch = fgetc(stdin)) != EOF && i < size - 1 && ch != ' ' && ch != '\n') 
-                str[i++] = ch;
-
-             str[i] = '\0';
-          return i;
-        default: 
-            while ((ch = fgetc(stdin)) != EOF && i < size - 1 && ch != specifier) 
-                 str[i++] = ch;
-
-             str[i] = '\0';
-          return i;
+    fflush(stdout);
+    if(read(0, str , size) <= 0){
+        perror("Error");
+        return -1;
     }
+    bytes_read = strcspn(str, specifier);
+    str[bytes_read] = '\0';
+    return bytes_read;
+}
+
+
+/* getch: Read a character from standard input */
+char getch(void){
+    char ch = '\0';
+    fflush(stdout);
+    if(read(0, &ch, 1) <= 0){
+        perror("Error");
+        return EOF;
+    }
+    return ch;
 }
 
 
@@ -478,7 +485,7 @@ double setlimit(double utilscan, double max) {
   return utilscan;
 }
 
-/*setRange: Enforce a minimum and maximum value for a given input*/
+/* setRange: Enforce a minimum and maximum value for a given input. */
 double setRange(double utilscan, double min, double max) {
   while(utilscan < min || utilscan > max){
     printf("Invalid input .Please enter a number between %.1lf and %.1lf: ", min, max);
@@ -488,7 +495,7 @@ double setRange(double utilscan, double min, double max) {
 }
 
 /* setlimit_err: Enforce a minimum value of 1 and a maximum value for a given input,
- *              using a custom error message. */
+*           using a custom error message. */
 double setlimit_err(double utilscan, double max, const char *__restrict prompt) {
   while(utilscan <= 0 || utilscan > max) {
     fputs(prompt, stdout);
@@ -567,6 +574,22 @@ __attribute__((always_inline)) inline long int utilCountln(FILE *stream){
   return count;
 } 
 
+
+/* utilgetime: get time of the system */
+__attribute__((always_inline)) inline int utilgetime(char *str, long int size){
+  if(!str || size <= 20)
+    return fputs("Insufficient size of buffer for getime", stderr), -1;
+  time_t rawtime;
+  struct tm *timeinfo;
+  time(&rawtime);
+  timeinfo = localtime(&rawtime);
+
+  if (strftime(str, size, "%H:%M:%S", timeinfo) == 0) {
+      fputs("Buffer too small for time string\n", stderr);
+      return -1;
+  }
+  return 0; 
+}
 
 /* utilGetSize: return the size of a file in bytes by seeking to the end of the file and using ftell.
  It handles errors in file opening and seeking operations. */
