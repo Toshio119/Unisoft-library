@@ -3,6 +3,23 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h> 
+/*
+===================================================
+       U!nisoft Libarary's 
+       Utility at it's peak
+---------------------------------------------------
+  ##    ##  ##   ##        ##   #####
+  ##    ##  ##   ##             ##   #
+  ##    ##  ##   ##        ##   ##   #
+  ##    ##  ##   ##        ##   #####
+  ##    ##  ##   ##        ##   ##   #
+  ##    ##       ##        ##   ##   #
+    ####    ##   ########  ##   #####
+---------------------------------------------------
+© 2024 Unisoft .All rights reserved.
+For support, contact: toshiojp119@gmail.com
+===================================================
+*/
 
 // Helper function to print an error message and exit
 static void print_error(const char *msg) {
