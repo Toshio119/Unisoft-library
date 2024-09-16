@@ -7,7 +7,7 @@
  *  Description: This is a C library that contains useful functions for       *
  *  C programs.                                                               *
  *  Notes: Let me know what functions to add more and iam sorry for           *                                                     
- *  not being able to write comment lines.these are the only ones that remain.li*
+ *  not being able to write comment lines.these are the only ones that remain.*
  *                                                                            *
  ******************************************************************************/
 #ifndef UTILIB_H
@@ -17,19 +17,33 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <math.h>
 #include <errno.h>
 #include <unistd.h>
 #include <ctype.h>
 #include <setjmp.h>
 #include <sys/wait.h>
+#include <dirent.h>
 #include <time.h>
+#include <sys/stat.h>
+#include <stdarg.h>
+#include <immintrin.h>
+
 #define true 1
 #define false 0
 #define bool _Bool
+#define null ((void*)0)
 
-#define with(ptr, cleanup) \
- for (int __done__ = ((ptr) ? 0 : (perror("Error"), 1)); !__done__; __done__ = (cleanup(ptr), 1))
+#define with(ptr, cleanup_func, ...) \
+for (int __done__ = ((ptr) ? 0 : (perror("Error"), 1)), \
+     __cleanup_set = (cleanup_func) ? 0 : (fputs("Cleanup function is NULL\n", stderr), 1); \
+     !__done__ && !__cleanup_set; \
+     __done__ = (cleanup_func(ptr), 1))
 
+#define error_at(x) ({ int __val = (x); (__val == -1 ? \
+({\
+fprintf(stderr,"Error at: (" __FILE__ " line: %d %s)\n",__LINE__, strerror(errno));\
+exit(-1); -1;}) : __val); })
 
 #define swap(x, y)        \
 do {                      \
@@ -38,6 +52,12 @@ do {                      \
     (y) = _tmp;           \
 } while (0)
 
+#define size_arr(arr) (sizeof(arr) / sizeof(arr[0]))
+
+#define file_opening_error 1
+#define memory_allocation_error 2
+#define  file_copy_error 3
+#define RANDOMINT_MAX 1024
 
 #define MAX(a, b, type) \
 ({                      \
@@ -54,8 +74,76 @@ do {                      \
     _a < _b ? _a : _b;  \
 })
 
+#define utilarrMap(arr, len, action) do{ \
+   for(size_t i = 0; i < len; i++) { \
+       (arr)[i] = (action((arr)[i])); \
+    }  \
+} while(0)
 
-#define size_arr(arr) (sizeof(arr) / sizeof((arr)[0]))
+#define arrInln(arr, len) do{ \
+   size_t i = -1; \
+   while(++i < len && scanf("%d", &arr[i])); \
+}while(0)
+
+#define utilarrFilter(arr, len, condition) do { \
+    size_t j = 0; \
+    for(size_t i = 0; i < len; i++) { \
+        if(condition((arr)[i])) {  \
+            (arr)[j++] = (arr)[i]; \
+        } \
+    } \
+  len = j; \
+} while(0)
+
+#define RED_COLOR "\33[1;31m"
+#define GREEN_COLOR "\33[1;32m"
+#define YELLOW_COLOR "\33[1;33m"
+#define BLUE_COLOR "\33[1;34m"
+#define MAGENTA_COLOR "\33[1;35m"
+#define CYAN_COLOR "\33[1;36m"
+#define RESET_COLOR "\33[00m"
+
+#define utilstrTarget(str, size, manipulation, search) do {       \
+    if ((str) && (manipulation)) {                                \
+        if ((search) != NULL) {                                   \
+            char *found = strstr((str), (search));                \
+            if (found != NULL) {                                  \
+                char *end = found + strlen(search);               \
+                char savedChar = *end;                            \
+                *end = '\0';                                      \
+                manipulation(found);                              \
+                *end = savedChar;                                 \
+            }                                                     \
+        } else {                                                  \
+            manipulation(str);                                    \
+        }                                                         \
+    }                                                             \
+} while (0)
+
+#define Typeof(var) _Generic((var), \
+int: "<int>", \
+unsigned int: "<unsigned int>", \
+short: "<short>", \
+unsigned short: "<unsigned short>", \
+long: "<long>", \
+unsigned long: "<unsigned long>", \
+long long: "<long long>", \
+unsigned long long: "<unsigned long long>", \
+char: "<char>", \
+unsigned char: "<unsigned char>", \
+float: "<float>", \
+double: "<double>", \
+long double: "<long double>", \
+void *: "<void*>", \
+const void *: "<const void*>", \
+char *: "char*", \
+const char *: "<const char*>", \
+default: "unknown")
+      
+#define __construct__ __attribute__((constructor)) 
+#define __destruct__  __attribute__((destructor))
+#define Prio_struct(prioritize) __attribute__((constructor(prioritize)))
+#define Prio_destruct(prioritize) __attribute__((destructor(prioritize)))
 
 #define Try do { int __err = setjmp(__jmpbuf); if (__err == 0) {
 #define Catch(expression) } else if (__err == (expression)) {
@@ -82,13 +170,13 @@ __attribute__((always_inline)) inline long int utilstrIn(char *__restrict str, l
 
 
 /* getch: Read a character from standard input */
-char getch(void){
-    char ch = '\0';
-    fflush(stdout);
-    if(read(0, &ch, 1) <= 0){
-        perror("Error");
-        return EOF;
-    }
+int getch(bool only_ch) {
+    char ch, discard;
+    if (read(0, &ch, 1) == EOF) 
+        return -1; 
+    if (only_ch) 
+        while (read(0, &discard, 1) > 0 && discard != '\n');
+  
     return ch;
 }
 
@@ -107,6 +195,9 @@ __attribute__((always_inline)) inline char** split(const char *str, const char *
     char *token = strtok(temp, delimiter);
     while (token) {
         result = (char**)realloc(result, sizeof(char*) * (*count + 1));
+        if(result == NULL) {
+          Throw(memory_allocation_error);
+        }
         result[*count] = strdup(token);
         (*count)++;
         token = strtok(NULL, delimiter);
@@ -118,74 +209,200 @@ __attribute__((always_inline)) inline char** split(const char *str, const char *
     return result;
 }
 
+
+
+/* Function to get the color code based on user input */
+const char* getColorCode(const char *color) {
+    if (strcmp(color, "red") == 0) return RED_COLOR;
+    if (strcmp(color, "green") == 0) return GREEN_COLOR;
+    if (strcmp(color, "yellow") == 0) return YELLOW_COLOR;
+    if (strcmp(color, "blue") == 0) return BLUE_COLOR;
+    if (strcmp(color, "magenta") == 0) return MAGENTA_COLOR;
+    if (strcmp(color, "cyan") == 0) return CYAN_COLOR;
+    return RESET_COLOR;  // Default to no color if invalid input
+}
+
+ /* utilstrHighlite print the line with the pattern highlighted in the specified color */
+__attribute__((always_inline)) inline void utilstrHighlite(const char *line, const char *pattern, const char *color) {
+    if (!line || !pattern || !color) 
+      return;
+    const char *current = line;  
+    const char *colorCode = getColorCode(color); 
+    while ((current = strstr(current, pattern)) != NULL) {
+        printf("%.*s", (int)(current - line), line);
+        printf("%s%s%s", colorCode, pattern, RESET_COLOR);
+        current += strlen(pattern);
+        line = current;
+    }
+    printf("%s", line);
+}
+
 /* utilreadln: Prompt the user with a message and read a line of input into a dynamically allocated string */
-__attribute__((always_inline)) inline char *utilreadln(const char *__restrict prompt) {
-  if (!prompt) 
-    return NULL;
+__attribute__((always_inline)) inline char *utilreadln(const char *prompt) {
+    if (!prompt) 
+        return NULL;
+    // Print the prompt to stdout
+    fputs(prompt, stdout);
+    fflush(stdout);  // Ensure prompt is flushed immediately
 
-  fputs(prompt, stdout);
+    size_t size = 128;
+    char *buff = (char *)malloc(size);
+    if (!buff) {
+        Throw(memory_allocation_error);
+        return NULL;
+    }
+    
+    char ch;
+    size_t len = 0;
+    while ((read(0, &ch, 1)) != EOF && ch != '\n') {
+        if (len + 1 >= size) {
+            size *= 2;
+            char *newptr = (char *)realloc(buff, size);
+            if (!newptr) {
+                free(buff);
+                Throw(memory_allocation_error);
+                return NULL;
+            }
+            buff = newptr;
+        }
+        buff[len++] = ch;
+    }
 
-  size_t size = 128, len = 0;
-  char *buff = (char *)malloc(size), ch = '\0';
-  
-  if (!buff) 
-    return NULL;
-  
-  while ((ch = fgetc(stdin)) != EOF && ch != '\n') {
-    if (len + 1 >= size) {
-      size *= 2;
-      char *newptr = (char*)realloc(buff, size);
-      if (!newptr) {
+    if (len == 0 && ch == EOF) {
         free(buff);
         return NULL;
-      }
-      buff = newptr;
     }
-    buff[len++] = ch;
-  }
-
-  if (len == 0 && ch == EOF) {
-    free(buff);
-    return NULL;
-  }
-
-  buff[len] = '\0';
-
-  return buff;
+  
+    buff[len] = '\0';
+    return buff;
 }
+
+
+void println(const char *__restrict format, ...) {
+    va_list args;
+    va_list args_copy;
+
+    va_start(args, format);
+
+    va_copy(args_copy, args);
+    long int length = vsnprintf(NULL, 0, format, args_copy);
+    va_end(args_copy);
+
+    char buffer[length + 2];
+
+    vsnprintf(buffer, sizeof(buffer), format, args);
+    va_end(args);
+
+    buffer[length] = '\n';
+    buffer[length + 1] = '\0';
+
+    fwrite(buffer, sizeof(char), length + 1, stdout);
+}
+
+size_t strlen_sse(const char *str) {
+    const char *start = str;
+    __m128i zero = _mm_setzero_si128();
+    while (1) {
+         //This is not mine this is brought from stackoverflow
+         // sorry i needed a fast way to get the length of a string and this is the fastest way i could find
+        __m128i chunk = _mm_loadu_si128((const __m128i *)str);
+        __m128i cmp = _mm_cmpeq_epi8(chunk, zero);
+        int mask = _mm_movemask_epi8(cmp);
+        if (mask != 0) {
+            return (str - start) + __builtin_ctz(mask);
+        }
+        str += 16;
+    }
+}
+
 
 /* utilclear: Clear console screen */
 void utilclear(void) {
-  fputs("\033[2J\033[1;1H", stdout); fputs("\033c", stdout);
+  fwrite("\033[2J\033[1;1H", sizeof(char), 11, stdout);  
+  fwrite("\033c", sizeof(char), 3, stdout); 
 }
 
-/* utilfile_read: Read a content of a file into a buffer */
-__attribute__((always_inline)) inline long int utilfile_read(char *__restrict buffer, size_t size, FILE *__restrict file) {
-    if(!buffer || size <= 0 || !file)
+
+/* utilfile_read: Read a blocks of content of a file into a buffer */
+__attribute__((always_inline)) inline long int utilfile_read(char *__restrict buffer, size_t size, FILE *__restrict stream) {
+    if(!buffer || size <= 0 || !stream)
       return -1;
-    long int bytesRead = fread(buffer, 1, size - 1, file);
-    if (!bytesRead || ferror(file)) {
-        perror("Error reading file");
-        return -1;
-    }
+    long int bytesRead = fread(buffer, 1, size - 1, stream);
+    if (!bytesRead || ferror(stream)) 
+        return perror("Error reading file"), -1;
+  
     buffer[bytesRead] = '\0'; 
     return bytesRead;
 }
 
 
+/* utilfilewrite: write blocks of the buffer content into a file */
+__attribute__((always_inline)) inline int utilfile_write(char *__restrict buffer, FILE *__restrict stream) {
+    if(!buffer || !stream)
+      return -1;
+   if(fwrite(buffer, 1, strlen(buffer), stream) <= 0 || ferror(stream)) 
+     return perror("Error reading file"), -1;
+   
+  return 0;
+}
+
+__attribute__((always_inline)) inline int utilfile_append(const char *__restrict src, char *__restrict content) {
+    if(!src || !content)
+        return -1;
+    FILE *ptr = fopen(src, "a");
+    if(ptr == NULL)
+        return perror("append"), -1;
+    fputs(content, ptr);
+    fclose(ptr);
+    return 0;
+}
+
 /* This is a helper function needed for join function in utilib.h */
 size_t length(char **strings, int count, const char *delimiter) {
   size_t total_length = 0;
-  size_t delimiter_length = strlen(delimiter);
+  size_t delimiter_length = strlen_sse(delimiter);
 
   for (int i = 0; i < count; i++) {
-      total_length += strlen(strings[i]);
+      total_length += strlen_sse(strings[i]);
       if (i < count - 1) {
           total_length += delimiter_length;
       }
   }
 
   return total_length + 1; 
+}
+
+__attribute__((always_inline)) inline void utilstrCaptilize(char *__restrict str) {
+  if(!str)
+    return;
+  int word = 0;
+  for(int i = 0;str[i];i++) {
+    if(isspace(str[i])) {
+      word = 0;
+    } else {
+      if(!word) {
+        str[i] = toupper(str[i]);
+        word = 1;
+      } else {
+        str[i] = tolower(str[i]);
+      }
+    }
+  }
+}
+
+
+__attribute__((always_inline)) inline int utilstrInsert(char *str , char *insert_str, long int pos, long int size_str) {
+    if(!str || !insert_str || pos <= 0)
+      return -1;
+   long int len = strlen_sse(str);
+   long int insert_len = strlen_sse(insert_str);
+   (pos > len) ? pos = len : pos;
+   char result[len + insert_len + 1];
+   memcpy(result, str, pos);
+   memcpy(result + pos, insert_str, insert_len);
+   memcpy(result + pos + insert_len, str + pos, len - pos + 1);
+   strncpy(str, result, size_str);
+   return 0;
 }
 
 
@@ -195,8 +412,10 @@ __attribute__((always_inline)) inline void utilLshift(void *arr, size_t datatype
         return;
 
       void *temp = malloc(datatype_size);
-      if (!temp) 
+      if (!temp) {
+         Throw(memory_allocation_error);
          return;
+      }
       memcpy(temp, arr, datatype_size); 
   
       memmove(arr, (char*)arr + datatype_size, (size - 1) * datatype_size);
@@ -205,14 +424,17 @@ __attribute__((always_inline)) inline void utilLshift(void *arr, size_t datatype
   free(temp);
 }
 
+
 /* utilRshift: Right shift an array of elements by one position */
 __attribute__((always_inline)) inline void utilRshift(void *arr, size_t datatype_size, size_t size){
       if (!arr ||size <= 0 || !datatype_size)
         return;
      
       void *temp = malloc(datatype_size);
-      if (!temp) 
-        return; 
+      if (!temp) {
+        Throw(memory_allocation_error);
+        return;
+      } 
       memcpy(temp, (char*)arr + (size - 1) * datatype_size, datatype_size);
 
       memmove((char*)arr + datatype_size, arr, (size - 1) * datatype_size);
@@ -222,12 +444,25 @@ __attribute__((always_inline)) inline void utilRshift(void *arr, size_t datatype
 }
 
 
+/* utilstrReverse: Reverse the sentence of a given string */
+__attribute__((always_inline)) inline char *utilstrReverse(char *str) {
+  if(!str)
+     return NULL;
+  long int len = strlen_sse(str);
+  for (int i = 0; i < len / 2; i++) {
+      char temp = str[i];
+      str[i] = str[len - 1 - i];
+      str[len - 1 - i] = temp;
+  }
+  return str;
+}
+
 /* utilstrTrim: Trim the leading and trailing whitespace from a string */
 __attribute__((always_inline)) inline char *utilstrTrim(char *__restrict str) {
     if (!str) 
         return NULL;
   
-    char *start = str, *end = str + strlen(str) - 1;
+    char *start = str, *end = str + strlen_sse(str) - 1;
     
     while (isspace(*start)) 
       start++;
@@ -276,39 +511,79 @@ __attribute__((always_inline)) inline long int utilstrRepc(char *__restrict str,
 
 
 /* utilstrReps: Replace all occurrences of a substing in a string with a another substring */
-__attribute__((always_inline)) inline char *utilstrReps(char *__restrict str, long int strsize,const char *oldstr,const char *newstr) {
+__attribute__((always_inline)) inline int utilstrReps(char *__restrict str, long int strsize,const char *oldstr,const char *newstr) {
   if(!str || !oldstr || !newstr || strsize <= 0) // A special thanks to Code vault from youtube who has designed 
-      return NULL;                                 // This string replacement function youtube: @CodeVault
+      return -1;                                  // This string replacement function youtube: @CodeVault
   char *Temp = NULL;
   // I have made some optimizations-
   // to make the code perform faster such as reducing function call's from strlen
-  long int i = strlen(newstr), j = strlen(oldstr), k = 0;
+  long int i = strlen_sse(newstr), j = strlen_sse(oldstr), k = 0;
   while((Temp = strstr(str, oldstr)) != NULL) {
-  k = strlen(Temp);
+  k = strlen_sse(Temp);
   if(strsize < k + (i - j) + 1)
-    return NULL;
-  
+    return -1;
+
   memmove(Temp + i, Temp + j, k - j + 1);
   memcpy(Temp, newstr, i);
   }
-  return NULL;
+  return 0;
+}
+
+/* utilstrRep: Replace only one occurrence of a substing in a string with a another substring */
+__attribute__((always_inline)) inline int utilstrRep(char *__restrict str, long int strsize,const char *oldstr,const char *newstr) {
+    if(!str || !oldstr || !newstr || strsize <= 0)  
+        return -1;                                   
+    char *Temp = strstr(str, oldstr);
+    if(!Temp)
+      return -1;
+    long int i = strlen_sse(newstr), j = strlen_sse(oldstr) , k = strlen_sse(Temp);
+    if(strsize < k + (i - j) + 1)
+      return -1;
+
+    memmove(Temp + i, Temp + j, k - j + 1);
+    memcpy(Temp, newstr, i);
+    return 0;
 }
 
 
 /*utilstrFilter: Filter out the unwanted substring's from a string*/
-__attribute__((always_inline)) inline char *utilstrFilter(const char *__restrict str, const char *__restrict filter) {
+__attribute__((always_inline)) inline int utilstrFilter(char *__restrict str, const char *__restrict filter) {
     if(!str || !filter)
-      return NULL;
+      return -1;
 
   char *Temp = NULL;
-  long int i = strlen(filter), j = 0;
+  long int i = strlen_sse(filter), j = 0;
   while((Temp = strstr(str, filter)) != NULL) 
-    j = strlen(Temp),
+    j = strlen_sse(Temp),
     memmove(Temp, Temp + i, j - i + 1);
 
-  return NULL;
+  return 0;
 }
 
+/*writeln: A low level function to write a line of string along with a newline */
+__attribute__((always_inline)) inline void writeln(const char *__restrict format) {
+    if(!format)
+      return;
+    fflush(stdout);
+    if(write(1, format, strlen_sse(format)) <= 0 || write(1, "\n", 1) <= 0) 
+      perror("write");
+  
+}
+
+/*readln: A low level function to read a line of string */
+__attribute__((always_inline)) inline long int readln(char *__restrict str, long int size) {
+    if(!str || size <= 0)
+      return  -1;
+
+    fflush(stdout);
+    long int bytes_read = 0;
+    if((bytes_read = read(0, str , size)) <= 0) {
+      perror("read");
+      return -1;
+    }
+    str[bytes_read - 1] = '\0';
+    return bytes_read;
+}
 
 /* utilstrjoin: Join an array of strings into a single string, separated by a delimiter */
 __attribute__((always_inline)) inline char* utilstrjoin(char **__restrict strings, int count, const char *__restrict delimiter) {
@@ -318,8 +593,8 @@ __attribute__((always_inline)) inline char* utilstrjoin(char **__restrict string
         size_t total_length = length(strings, count, delimiter);
         char *result = (char*)malloc(total_length);
         if (result == NULL) {
-        perror("malloc");
-         exit(EXIT_FAILURE);
+            Throw(memory_allocation_error);
+            exit(1);
         }
 
         result[0] = '\0'; 
@@ -405,14 +680,168 @@ __attribute__((always_inline)) inline void utilSort(void *array, size_t length, 
     }
 }
 
+
+bool is_odd(int x) { // for utilarrFilter
+    return x % 2 != 0;
+}
+
+bool is_even(int x) { // for utilarrFilter
+    return x % 2 == 0;
+}
+
+bool is_prime(int x) { // for utilarrFilter
+   if(x < 2) return false;
+   for(int i = 0; i <= sqrt(x); i++){
+     if(x % i == 0) return false;
+   }
+   return true;
+}
+
+int increment(int x) { // for utilarrmap
+  return x + 1;
+}
+
+int square(int x) {  // for utilarrmap
+  return x * x;
+}
+
+int filter_positive(int x) {  // for utilarrmap
+  return (x > 0) ? x : 0;
+}
+
+int replace_if_negative(int x) {  // for utilarrmap
+  return (x < 0) ? -x : x;
+}
+
+int factorial(int n) {
+    if (n == 0 || n == 1) {
+        return 1;
+    } else {
+        return n * factorial(n - 1);
+    }
+}
+
+/* Calculate the mean (average) of an array of integers */
+double calculate_mean(int arr[], int n) {
+    int sum = 0;
+    for (int i = 0; i < n; i++) {
+        sum += arr[i];
+    }
+    return (double)sum / n;
+}
+
+
+__attribute__((always_inline)) inline void arrIn(int *arr, long size) {
+    if (!arr || size <= 0)
+       return;
+    size_t count = 0;
+    int num;
+    char inputChar;
+    while (count < size && scanf("%d", &num) == 1) {
+        arr[count++] = num;
+        inputChar = getchar();
+        if (inputChar != ' ') 
+            break;
+    }
+    while (inputChar != '\n' && inputChar != EOF) 
+        inputChar = getchar();
+
+} 
+
+__attribute__((always_inline)) inline void filterNumbers(const char *input, char *output) {
+  int j = 0;
+  for (int i = 0; input[i] != '\0'; i++) 
+      if (isdigit((unsigned char)input[i])) 
+          output[j++] = input[i];
+
+  output[j] = '\0'; 
+}
+
+static int arrindex = 0;
+
+__attribute__((always_inline)) static inline int randomint(int min, int max) {
+  if (min > max || min == max) 
+      return -1; 
+  if(max > 1024) {
+    fputs("Error: Max value is greater than 1024 (greater than randomint max value)\n", stderr);
+    return -1;
+  }
+  char arr[2024];
+  char buff1[25], filtered[25];
+  snprintf(buff1, sizeof(buff1), "%p", &arr[arrindex]); 
+  filterNumbers(buff1, filtered);
+  int addressAsInt = atoi(filtered);
+  int range = max - min + 1;
+  (arrindex == 2024) ? arrindex = 0 : arrindex++;
+  return (addressAsInt % range) + min;
+}
+
+/* buffer for the arrFormat function */
+char buffer[1024];  
+/* i had to put this here but it look's bad ....*/
+/*compiler will not print any warning's  */
+
+
+/* arrFormat: Formats an array of integers into a string */
+__attribute__((always_inline)) inline char *arrFormat(const int *arr, long size) {
+    if(!arr || !size)
+      return NULL;
+
+    buffer[0] = '[';  
+    size_t pos = 1;  
+    for (size_t i = 0; i < size; i++) {
+        pos += snprintf(buffer + pos, 1024 - pos, "%d", arr[i]);
+        if (i < size - 1) {
+            pos += snprintf(buffer + pos, 1024 - pos, ", ");
+        }
+    }
+
+    snprintf(buffer + pos, 1024 - pos, "]");  
+    return buffer;
+}
+
+__attribute__((always_inline)) inline int arrOut(int *arr, long len) {
+  if (!arr || len <= 0)
+      return -1;
+  for (size_t i = 0; i < len; i++)
+      if(arr[i] != 0)
+      printf("%d ", arr[i]);
+
+  fputs("\n", stdout);
+return 0;
+}
+
+
+typedef struct store { 
+    char shell1[100];
+} store; // iam using this structure to orginize my code a bit
+
+store globalstore; // Using a global variable to maintain the shell path across functions
+
+void shelltype(const char *shell_path) {
+    snprintf(globalstore.shell1, sizeof(globalstore.shell1), "%s", shell_path);
+}
+
+void clearpath(void) {
+    globalstore.shell1[0] = '\0';
+}
+
+const char *getshelltype(void) {
+    const char *str = "/bin/bash";
+    if(globalstore.shell1[0] == '\0')
+      return str;
+    else 
+       return globalstore.shell1;
+}
+
 /* Deltaexe: execute a shell command using fork and execl in a child process.
 It handles errors during fork, execl, and waits for the child process to complete. */
 __attribute__((always_inline)) inline int Deltaexe(const char *command) {
-  if (command == NULL) { // Here iam also going to use fputs because iam just printing a string 
-      fputs("Deltaexe: Command's cannot be NULL\n", stderr);
-      return -1;
-  }
-  
+    if (command == NULL) { // Here iam also going to use fputs because iam just printing a string 
+        fputs("Deltaexe: Command cannot be NULL\n", stderr);
+        return -1;
+    }
+
     pid_t pid = fork();  
     int status = 0, wpid = 0;
 
@@ -421,29 +850,38 @@ __attribute__((always_inline)) inline int Deltaexe(const char *command) {
             perror("fork");
             return -1;
         case 0:
-            execl("/bin/bash", "DeltaSys", "-c", command, NULL); 
-            perror("execl");
-            return -1;
+            if (globalstore.shell1[0] != '\0') {
+                execl(globalstore.shell1, globalstore.shell1, "-c", command, NULL);
+                perror("execl");
+                return -1;
+            } else {
+                execl("/bin/bash", "DeltaSys", "-c", command, NULL); 
+                perror("execl");
+                return -1;
+            }
     }
 
     while ((wpid = waitpid(pid, &status, 0)) == -1 && errno == EINTR);
 
-    if (wpid == -1) 
-      return perror("waitpid"),-1;
-    
+    if (wpid == -1) {
+        perror("waitpid");
+        return -1;
+    }
+
     if (WIFEXITED(status)) {
         return WEXITSTATUS(status);
     } else if (WIFSIGNALED(status)) {
-        fprintf(stderr, "child process terminated by signal %d\n", WTERMSIG(status));
+        fprintf(stderr, "Child process terminated by signal %d\n", WTERMSIG(status));
         return -1;
     } else { // Here Iam using fputs because iam just printing a string not a variable
-        fputs("child process did not exit normally\n", stderr);
+        fputs("Child process did not exit normally\n", stderr);
         return -1;
     }
 }
 
+
 /* utilScan: prompt the user with a message and read value from the standard input. */
-__attribute__((always_inline)) inline double utilScan(const char *__restrict prompt) {
+__attribute__((always_inline)) inline long double utilScan(const char *__restrict prompt) {
     if (!prompt) 
       return -1;
 
@@ -451,33 +889,33 @@ __attribute__((always_inline)) inline double utilScan(const char *__restrict pro
     double value = 0;
   
     fputs(prompt, stdout);
-
+    fflush(stdout);
     while (1) {
         if (fgets(buff, sizeof(buff), stdin) != NULL) {
             buff[strlen(buff) - 1] = '\0';  
-            value = strtod(buff, &endptr);
+            value = strtold(buff, &endptr);
 
             if (endptr != buff && *endptr == '\0') 
                 return value;  
 
         } else {
-            return perror("Error"), -1; 
+            return perror(NULL), -1; 
         }
     }
 }
 
 
-double get_value(void) { // Helperfunction
-  char buff[75];
+long double get_value(void) { // Helper function
+  char buff[75], *end = NULL;
   if(fgets(buff, 75,stdin) != NULL)
-    return atof(buff);
+    return strtold(buff, &end);
   else
-    return perror("Error:"), -1;
+    return perror(NULL), -1;
 }
 
 
 /* setlimit: Enforce a minimum value of 1 and a maximum value for a given input. */
-double setlimit(double utilscan, double max) {
+long double setlimit(long double utilscan, double max) {
   while(utilscan <= 0 || utilscan > max) {
     printf("Invalid input .Please enter a number between 1 and %.1lf: ", max);
     utilscan = get_value();
@@ -486,8 +924,8 @@ double setlimit(double utilscan, double max) {
 }
 
 /* setRange: Enforce a minimum and maximum value for a given input. */
-double setRange(double utilscan, double min, double max) {
-  while(utilscan < min || utilscan > max){
+long double setRange(long double utilscan, double min, double max) {
+  while(utilscan < min || utilscan > max) {
     printf("Invalid input .Please enter a number between %.1lf and %.1lf: ", min, max);
     utilscan = get_value();
   }
@@ -496,18 +934,18 @@ double setRange(double utilscan, double min, double max) {
 
 /* setlimit_err: Enforce a minimum value of 1 and a maximum value for a given input,
 *           using a custom error message. */
-double setlimit_err(double utilscan, double max, const char *__restrict prompt) {
+long double setlimit_err(long double utilscan, double max, const char *__restrict prompt) {
   while(utilscan <= 0 || utilscan > max) {
     fputs(prompt, stdout);
-    utilscan =get_value();
+    utilscan = get_value();
   }
   return utilscan;
 }
 
 /* setRange_err: Enforce a minimum and maximum value for a given input, using a
  *               custom error message. */
-double setRange_err(double utilscan, double min, double max, const char *__restrict prompt) {
-  while(utilscan < min || utilscan > max){
+long double setRange_err(long double utilscan, double min, double max, const char *__restrict prompt) {
+  while(utilscan < min || utilscan > max) {
     fputs(prompt, stdout);
     utilscan = get_value();
   }
@@ -546,7 +984,7 @@ __attribute__((always_inline)) inline void utilRename(const char *__restrict old
          perror(oldfilename);
       return;
     }
-    while (fgets(str,1024,ptr2) != NULL)
+    while (fgets(str, 1024, ptr2) != NULL)
         fputs(str,ptr1);
   
     if (unlink(oldfilename) != 0) 
@@ -554,6 +992,293 @@ __attribute__((always_inline)) inline void utilRename(const char *__restrict old
    
     fclose(ptr1);
     fclose(ptr2);
+}
+
+
+/* utilwrite: write content to file in a particular index. */
+__attribute__((always_inline)) inline int utilwrite(const char *__restrict filename, long int line, char *__restrict content) {
+    if (!filename || line <= 0 || !content)
+        return -1;
+
+    char str[1024] = {0};
+    long int line_count = 0, buffer_size = 100;
+    FILE *ptr = NULL;
+    char **lines = (char **)malloc(buffer_size * sizeof(char*)); 
+
+    if (!lines) {
+        perror("malloc");
+        return -1;
+    }
+
+    if ((ptr = fopen(filename, "r+")) == NULL) {
+        perror("fopen");
+        free(lines);
+        return -1;
+    }
+
+    while (fgets(str, sizeof(str), ptr) != NULL) {
+        if (line_count >= buffer_size) {
+            buffer_size *= 2;
+            char **temp = (char **)realloc(lines, buffer_size * sizeof(char*));
+            if (!temp) {
+                Throw(memory_allocation_error);
+                free(lines);
+                fclose(ptr);
+                return -1;
+            }
+            lines = temp;
+        }
+
+        lines[line_count] = strdup(str); 
+        if (!lines[line_count]) {
+            Throw(memory_allocation_error);
+            for (int j = 0; j < line_count; j++) 
+              free(lines[j]);
+
+            free(lines);
+            fclose(ptr);
+            return -1;
+        }
+        line_count++;
+    }
+
+    if (fseek(ptr, 0, SEEK_SET) != 0) {
+        perror("fseek");
+        for (int j = 0; j < line_count; j++) 
+          free(lines[j]);
+
+        free(lines);
+        fclose(ptr);
+        return -1;
+    }
+
+    for (int j = 0; j < line - 1 && j < line_count; j++)
+        fwrite(lines[j], sizeof(char), strlen_sse(lines[j]), ptr);
+
+    fwrite(content, sizeof(char), strlen_sse(content), ptr);
+    fputc('\n', ptr);
+
+    for (int j = line - 1; j < line_count; j++)
+        fwrite(lines[j], sizeof(char), strlen_sse(lines[j]), ptr);
+
+    for (int j = 0; j < line_count; j++) 
+        free(lines[j]);
+
+    free(lines);
+    fclose(ptr);
+    return 0;
+}
+
+
+/* utilFind: Find a file in a given directory. */
+__attribute__((always_inline)) inline int utilFind_file(const char *Directory, const char *Filename) {
+  DIR *dir;
+  struct dirent *entry;
+
+  if ((dir = opendir(Directory)) == NULL) {
+    perror("Error");
+    return -1;
+  }
+
+  while ((entry = readdir(dir)) != NULL)
+    if(strcmp(entry->d_name, Filename) == 0) {
+      closedir(dir);
+      return 0;
+    }
+
+  closedir(dir);
+  return -1;
+}
+
+
+/* utilDirlist: list out in the console files in a given directory. */
+__attribute__((always_inline)) inline int utilDirlist(const char *Directory) {
+  DIR *dir;
+  struct dirent *entry;
+
+  if ((dir = opendir(Directory)) == NULL) {
+    perror("Error");
+    return -1;
+  }
+
+  while ((entry = readdir(dir)) != NULL)
+    puts(entry->d_name);
+
+  closedir(dir);
+  return 0;
+}
+
+
+_Bool val = false;
+/* exe_terminate: This is a function modifier for the logerror if this function is called log error will terminate the function*/
+void exe_terminate(_Bool arg) {
+   val = arg;
+}
+
+/* Abort: exit the program with a exit status 1 indicating failure */
+__attribute__((noreturn)) void Abort(void) {
+    exit(1);
+}
+
+void logerror(const char *__restrict msg) { 
+  fwrite(msg, sizeof(char), strlen(msg), stderr);
+  if(msg[0] != '\0' || !msg)
+  fwrite(": ", sizeof(char), 2, stderr);
+
+  switch(errno) { // do you know how much pain is counting string length manually ??
+      case EPERM:     
+        fwrite("Operation not permitted\n", sizeof(char), 25, stderr); 
+        break;
+      case ENOENT:    
+        fwrite("No such file or directory\n", sizeof(char), 27, stderr); 
+        break;
+      case ESRCH:     
+        fwrite("No such process\n", sizeof(char), 17, stderr); 
+        break;
+      case EINTR:     
+        fwrite("Interrupted system call\n", sizeof(char), 24, stderr);
+        break;
+      case EIO:       
+        fwrite("I/O error\n", sizeof(char), 11, stderr); 
+        break;
+      case ENXIO:     
+        fwrite("No such device or address\n", sizeof(char), 29, stderr); 
+        break;
+      case E2BIG:     
+        fwrite("Argument list too long\n", sizeof(char), 23, stderr); 
+        break;
+      case ENOEXEC:   
+        fwrite("Exec format error\n", sizeof(char), 19, stderr); 
+        break;
+      case EBADF:     
+        fwrite("Bad file number\n", sizeof(char), 16, stderr); 
+        break;
+      case ECHILD:    
+        fwrite("No child processes\n", sizeof(char), 20, stderr); 
+        break;
+      case EAGAIN:    
+        fwrite("Try again\n", sizeof(char), 11, stderr); 
+        break;
+      case ENOMEM:    
+        fwrite("Out of memory\n", sizeof(char), 15, stderr); 
+        break;
+      case EACCES:    
+        fwrite("Permission denied\n", sizeof(char), 18, stderr); 
+        break;
+      case EFAULT:    
+        fwrite("Bad address\n", sizeof(char), 12, stderr); 
+        break;
+      case ENOTBLK:   
+        fwrite("Block device required\n", sizeof(char), 23, stderr); 
+        break;
+      case EBUSY:     
+        fwrite("Device or resource busy\n", sizeof(char), 25, stderr); 
+        break;
+      case EEXIST:    
+        fwrite("File exists\n", sizeof(char), 12, stderr); 
+        break;
+      case EXDEV:     
+        fwrite("Cross-device link\n", sizeof(char), 18, stderr); 
+        break;
+      case ENODEV:    
+        fwrite("No such device\n", sizeof(char), 15, stderr); 
+        break;
+      case ENOTDIR:   
+        fwrite("Not a directory\n", sizeof(char), 16, stderr); 
+        break;
+      case EISDIR:    
+        fwrite("Is a directory\n", sizeof(char), 15, stderr); 
+        break;
+      case EINVAL:    
+        fwrite("Invalid argument\n", sizeof(char), 17, stderr); 
+        break;
+      case ENFILE:    
+        fwrite("File table overflow\n", sizeof(char), 21, stderr); 
+        break;
+      case EMFILE:   
+        fwrite("Too many open files\n", sizeof(char), 20, stderr); 
+        break;
+      case ENOTTY:    
+        fwrite("Not a typewriter\n", sizeof(char), 17, stderr); 
+        break;
+      case ETXTBSY:   
+        fwrite("Text file busy\n", sizeof(char), 14, stderr); 
+        break;
+      case EFBIG:     
+        fwrite("File too large\n", sizeof(char), 15, stderr); 
+        break;
+      case ENOSPC:    
+        fwrite("No space left on device\n", sizeof(char), 26, stderr); 
+        break;
+      case ESPIPE:    
+        fwrite("Illegal seek\n", sizeof(char), 13, stderr); 
+        break;
+      case EROFS:     
+        fwrite("Read-only file system\n", sizeof(char), 23, stderr); 
+        break;
+      case EMLINK:    
+        fwrite("Too many links\n", sizeof(char), 15, stderr); 
+        break;
+      case EPIPE:     
+        fwrite("Broken pipe\n", sizeof(char), 12, stderr); 
+        break;
+      case EDOM:      
+        fwrite("Math argument out of domain of func\n", sizeof(char), 36, stderr); 
+        break;
+      case ERANGE:    
+        fwrite("Math result not representable\n", sizeof(char), 31, stderr); 
+        break;
+      case 0:        
+        fwrite("Sucess\n", sizeof(char), 8, stderr); 
+        break;
+    default:
+        fwrite("Unknown error\n", sizeof(char), 14, stderr);
+    break;
+  }
+
+  if(val)
+    Abort();
+  else
+    return;
+}
+
+__attribute__((noreturn)) void terminate(void) {
+    (errno == 0) ? (exit(1)) : (logerror(""), exit(1));
+}
+
+__attribute__((always_inline)) inline void utilfile_stat(const char *filename) {
+    struct stat file_stat;
+    if (stat(filename, &file_stat) == -1) {
+        perror("stat");
+        return;
+    } 
+        printf("File: %s\n", filename);
+        fputs("File type: ", stdout);
+        if (S_ISREG(file_stat.st_mode)) {
+            fputs("Regular file", stdout);
+        } else if (S_ISDIR(file_stat.st_mode)) {
+            fputs("Directory", stdout);
+        } else if (S_ISCHR(file_stat.st_mode)) {
+            fputs("Character device", stdout);
+        } else if (S_ISBLK(file_stat.st_mode)) {
+            fputs("Block device", stdout);
+        } else if (S_ISFIFO(file_stat.st_mode)) {
+            fputs("FIFO/pipe", stdout);
+        } else if (S_ISLNK(file_stat.st_mode)) {
+            fputs("Symbolic link", stdout);
+        } else if (S_ISSOCK(file_stat.st_mode)) {
+            fputs("Socket", stdout);
+        } else {
+            fputs("Unknown", stdout);
+        }
+        printf("\nSize: %lld bytes\n", (long long) file_stat.st_size);
+        printf("Permissions: ");
+        printf("Number of hard links: %ld\n", (long) file_stat.st_nlink);
+        printf("Owner UID: %ld\n", (long) file_stat.st_uid);
+        printf("Group GID: %ld\n", (long) file_stat.st_gid);
+        printf("Last access time: %s", ctime(&file_stat.st_atime));
+        printf("Last modification time: %s", ctime(&file_stat.st_mtime));
+        printf("Last status change time: %s", ctime(&file_stat.st_ctime));
 }
 
 
@@ -574,9 +1299,25 @@ __attribute__((always_inline)) inline long int utilCountln(FILE *stream){
   return count;
 } 
 
+__attribute__((always_inline)) inline static FILE *open(const char *filename, const char *mode) {
+    FILE *file = fopen(filename, mode);
+    if (file == NULL) 
+        Throw(file_opening_error);
+
+    return file;
+}
+
+FILE *ifstream(const char *filename) {
+    return open(filename, "r");
+}
+
+FILE *ofstream(const char *filename) {
+    return open(filename, "w");
+}
+
 
 /* utilgetime: get time of the system */
-__attribute__((always_inline)) inline int utilgetime(char *str, long int size){
+__attribute__((always_inline)) inline int utilgetime(char *str, long int size) {
   if(!str || size <= 20)
     return fputs("Insufficient size of buffer for getime", stderr), -1;
   time_t rawtime;
@@ -585,7 +1326,7 @@ __attribute__((always_inline)) inline int utilgetime(char *str, long int size){
   timeinfo = localtime(&rawtime);
 
   if (strftime(str, size, "%H:%M:%S", timeinfo) == 0) {
-      fputs("Buffer too small for time string\n", stderr);
+      perror("utilgetime");
       return -1;
   }
   return 0; 
@@ -607,24 +1348,101 @@ __attribute__((always_inline)) inline long int utilGetSize(FILE *stream) {
 
 /* utilFilecpy: copy the contents of one file to another.
 It handles errors in file opening and ensures all data is copied successfully. */
-__attribute__((always_inline)) inline void utilFilecpy(const char *src, const char *dest) {
+__attribute__((always_inline)) inline int utilFilecpy(const char *__restrict src, const char *__restrict dest) {
   if(!src || !dest) 
-      return;
-  
+      return -1;
     FILE *ptr1 = NULL , *ptr2 = NULL;
-    char str[1024];
-  
-     if ((ptr1 = fopen(src, "r")) == NULL) {
-       perror(src);
-       return;
+    if ((ptr1 = fopen(src, "r")) == NULL) {
+       Throw(file_copy_error);
+       return -1;
     } if((ptr2 = fopen(dest, "w")) == NULL) {
-       perror(dest);
-       return;
-    } while (fgets(str,1024,ptr1) != NULL) 
-        fputs(str,ptr2);
-    
+       Throw(file_copy_error);
+       return -1;
+    } 
+    char buff[1024];
+    long bytesRead = 0;
+   while ((bytesRead = fread(buff, 1, sizeof(buff), ptr1)) > 0) {
+     if (fwrite(buff, 1, bytesRead, ptr2) != bytesRead) {
+        fclose(ptr1);
+        fclose(ptr2);
+        Throw(file_copy_error);
+        return -1;
+     }
+   }
+
+   if (ferror(ptr1)) {
+     fclose(ptr1);
+     fclose(ptr2);
+     Throw(file_copy_error);
+     return -1;
+   }
+  
     fclose(ptr1);
     fclose(ptr2);
+}
+
+
+static int check1 = 0;
+static int check2 = 0;
+
+__attribute__((noreturn)) void dummy(void) {
+  fwrite("new: dummy pointer detected\n", sizeof(char), 28, stderr);
+  exit(1);
+}
+
+
+__attribute__((noreturn)) void Invalid(void) {
+  fwrite("new: Invalid input\n", sizeof(char), 20, stderr);
+  exit(1);
+}
+
+__attribute__((noreturn)) void Error(void) {
+  perror("new");
+  exit(1);
+}
+
+
+__attribute__((always_inline)) inline static void *new(long size) {
+    if (size <= 0) 
+        Invalid();
+  
+    void *ptr = malloc(size);
+    if (ptr == NULL)
+        Error();
+
+     check1++;
+    return ptr;
+}
+
+
+__attribute__((always_inline)) inline static void delete(void *ptr) {
+    if (ptr == NULL) 
+        dummy();
+     free(ptr);
+     ptr = NULL;
+     check2++;
+}
+
+
+__attribute__((destructor, noreturn)) void memory_leaks(void) {
+    if (check1 != check2) 
+        fwrite("new: Memory leak detected\n", sizeof(char), 26,stderr);
+        exit(1);
+}
+
+
+__attribute__((always_inline)) inline static void* resize(void* oldArray, size_t oldSize, size_t newSize, size_t elemSize) {
+    // Allocate new array
+    void* newArray = new(newSize * elemSize);
+
+    size_t copySize = (oldSize < newSize) ? oldSize : newSize;
+    memcpy(newArray, oldArray, copySize * elemSize);
+
+    if (newSize > oldSize) {
+        memset((char*)newArray + oldSize * elemSize, 0, (newSize - oldSize) * elemSize);
+    }  
+     free(oldArray);
+  return newArray;
 }
 
 
@@ -643,9 +1461,8 @@ typedef struct LinkedList {
 /* Create a linked list usage: Linked list *<label> = createLinkedList(); */
 __attribute__((always_inline)) inline LinkedList* createLinkedList(void) {
     LinkedList *__restrict list = (LinkedList*)malloc(sizeof(LinkedList));
-    if (list == NULL) {
-        fputs("Error: Memory allocation for linked list failed.\n", stderr);
-        return NULL;
+    if(list == NULL) {
+       fputs("Error: Memory allocation failed.\n", stderr);
     }
     list->head = NULL;
     list->tail = NULL;
@@ -662,9 +1479,8 @@ __attribute__((always_inline)) inline int insertNode(LinkedList *__restrict list
     }
 
     liNode* newNode = (liNode*)malloc(sizeof(liNode));
-    if (newNode == NULL) {
-        fputs("Error: Memory allocation for node failed.\n", stderr);
-        return -1;
+    if (newNode == NULL){
+        fputs("Error: Memory allocation failed.\n", stderr);
     }
     newNode->data = data;
     newNode->next = NULL;
@@ -686,13 +1502,13 @@ __attribute__((always_inline)) inline int insertNode(LinkedList *__restrict list
 
 
 /* add a element at the end of the list */
-__attribute__((always_inline)) inline int append(LinkedList *__restrict list, int data) {
+int append(LinkedList *__restrict list, int data) {
     return insertNode(list, data, 1);
 }
 
 
 /* add a element to the beggning of the list */
-__attribute__((always_inline)) inline int prepend(LinkedList *__restrict list, int data) {
+int prepend(LinkedList *__restrict list, int data) {
     return insertNode(list, data, 0);
 }
 
@@ -733,7 +1549,7 @@ __attribute__((always_inline)) inline int removeElement(LinkedList *__restrict l
 
 
 /* Get size of the list */
-__attribute__((always_inline)) inline size_t getSize(LinkedList *__restrict list) {
+size_t getSize(LinkedList *__restrict list) {
     return (list != NULL) ? list->size : 0;
 }
 
@@ -746,13 +1562,13 @@ __attribute__((always_inline)) inline void printList(LinkedList *__restrict list
     }
 
     liNode* current = list->head;
-    printf("[");
+    fputs("[", stdout);
     while (current) {
         printf("%d", current->data);
-        if (current->next) printf(", ");
+        if (current->next) fputs(", ", stdout);
         current = current->next;
     }
-    printf("]\n");
+    fputs("]\n", stdout);
 }
 
 
