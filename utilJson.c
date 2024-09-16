@@ -2,6 +2,23 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+/*
+===================================================
+       U!nisoft Libarary's 
+       Utility at it's peak
+---------------------------------------------------
+  ##    ##  ##   ##        ##   #####
+  ##    ##  ##   ##             ##   #
+  ##    ##  ##   ##        ##   ##   #
+  ##    ##  ##   ##        ##   #####
+  ##    ##  ##   ##        ##   ##   #
+  ##    ##       ##        ##   ##   #
+    ####    ##   ########  ##   #####
+---------------------------------------------------
+© 2024 Unisoft .All rights reserved.
+For support, contact: toshiojp119@gmail.com
+===================================================
+*/
 
 // Helper function to find the length of a JSON string up to the next delimiter
 static size_t json_strlen(const char *str) {
