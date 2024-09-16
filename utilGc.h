@@ -10,8 +10,9 @@
  * 
  * The use of `malloc`, `calloc`, and `free` macros redirects memory management calls to the tracking functions, allowing for automated monitoring and debugging. 
  * 
- * This tool is designed to assist in debugging and ensuring proper memory management. However, it is essential to perform additional checks and tests in production environments. Users should review the implementation of this code to ensure it meets the specific needs and security requirements of their application.
- * 
+ * This tool is designed to assist in debugging and ensuring proper memory management. 
+ * However, it is essential to perform additional checks and tests in production environments. 
+ * Users should review the implementation of this code to ensure it meets the specific needs and security requirements of their application. 
  * (c) 2024 Toshio Nayashima
  * All rights reserved.
  */
