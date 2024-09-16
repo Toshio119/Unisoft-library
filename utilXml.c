@@ -2,6 +2,23 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+/*
+===================================================
+       U!nisoft Libarary's 
+       Utility at it's peak
+---------------------------------------------------
+  ##    ##  ##   ##        ##   #####
+  ##    ##  ##   ##             ##   #
+  ##    ##  ##   ##        ##   ##   #
+  ##    ##  ##   ##        ##   #####
+  ##    ##  ##   ##        ##   ##   #
+  ##    ##       ##        ##   ##   #
+    ####    ##   ########  ##   #####
+---------------------------------------------------
+© 2024 Unisoft .All rights reserved.
+For support, contact: toshiojp119@gmail.com
+===================================================
+*/
 
 static size_t calculate_xml_buffer_size(const XmlElement *elements, size_t num_elements) {
     size_t size = 0;
