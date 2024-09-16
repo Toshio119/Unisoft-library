@@ -1,4 +1,21 @@
 #include "utilSync.h"
+/*
+===================================================
+       U!nisoft Libarary's 
+       Utility at it's peak
+---------------------------------------------------
+  ##    ##  ##   ##        ##   #####
+  ##    ##  ##   ##             ##   #
+  ##    ##  ##   ##        ##   ##   #
+  ##    ##  ##   ##        ##   #####
+  ##    ##  ##   ##        ##   ##   #
+  ##    ##       ##        ##   ##   #
+    ####    ##   ########  ##   #####
+---------------------------------------------------
+© 2024 Unisoft .All rights reserved.
+For support, contact: toshiojp119@gmail.com
+===================================================
+*/
 
 // Create and start a new thread
 int create_thread(Thread *t, thread_func_t func, void *arg) {
