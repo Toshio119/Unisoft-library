@@ -21,6 +21,12 @@ For support, contact: toshiojp119@gmail.com
 ===================================================
 */
 
+#include "utilCLI.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdbool.h> 
+
 // Helper function to print an error message and exit
 static void print_error(const char *msg) {
     fprintf(stderr, "Error: %s\n", msg);
@@ -80,3 +86,4 @@ bool get_option(const CLIOption *options, size_t num_options, const char *name, 
     }
     return false;
 }
+
