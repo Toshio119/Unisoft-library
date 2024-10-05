@@ -12,23 +12,6 @@
  ******************************************************************************/
 #ifndef UTILIB_H
 #define UTILIB_H
-/*
-===================================================
-       U!nisoft Libarary's 
-       Utility at it's peak
----------------------------------------------------
-  ##    ##  ##   ##        ##   #####
-  ##    ##  ##   ##             ##   #
-  ##    ##  ##   ##        ##   ##   #
-  ##    ##  ##   ##        ##   #####
-  ##    ##  ##   ##        ##   ##   #
-  ##    ##       ##        ##   ##   #
-    ####    ##   ########  ##   #####
----------------------------------------------------
-© 2024 Unisoft .All rights reserved.
-For support, contact: toshiojp119@gmail.com
-===================================================
-*/
 
 #pragma once
 #include <stdio.h>
@@ -45,6 +28,7 @@ For support, contact: toshiojp119@gmail.com
 #include <sys/stat.h>
 #include <stdarg.h>
 #include <immintrin.h>
+#include "utilGc.h"
 
 #define true 1
 #define false 0
@@ -91,7 +75,7 @@ do {                      \
     _a < _b ? _a : _b;  \
 })
 
-#define utilarrMap(arr, len, action) do{ \
+#define UiarrMap(arr, len, action) do{ \
    for(size_t i = 0; i < len; i++) { \
        (arr)[i] = (action((arr)[i])); \
     }  \
@@ -102,7 +86,7 @@ do {                      \
    while(++i < len && scanf("%d", &arr[i])); \
 }while(0)
 
-#define utilarrFilter(arr, len, condition) do { \
+#define UiarrFilter(arr, len, condition) do { \
     size_t j = 0; \
     for(size_t i = 0; i < len; i++) { \
         if(condition((arr)[i])) {  \
@@ -120,7 +104,7 @@ do {                      \
 #define CYAN_COLOR "\33[1;36m"
 #define RESET_COLOR "\33[00m"
 
-#define utilstrTarget(str, size, manipulation, search) do {       \
+#define UistrTarget(str, size, manipulation, search) do {       \
     if ((str) && (manipulation)) {                                \
         if ((search) != NULL) {                                   \
             char *found = strstr((str), (search));                \
@@ -169,8 +153,148 @@ default: "unknown")
 jmp_buf __jmpbuf;
 
 
-/* utilstrIn: Read a string from standard input until a specified delimiter or maximum size is reached */
-__attribute__((always_inline)) inline long int utilstrIn(char *__restrict str, long int size, const char *specifier) {
+#pragma once
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <math.h>
+#include <errno.h>
+#include <unistd.h>
+#include <ctype.h>
+#include <setjmp.h>
+#include <sys/wait.h>
+#include <dirent.h>
+#include <time.h>
+#include <sys/stat.h>
+#include <stdarg.h>
+#include <immintrin.h>
+#include "UiGc.h"
+
+#define true 1
+#define false 0
+#define bool _Bool
+#define null ((void*)0)
+
+#define with(ptr, cleanup_func, ...) \
+for (int __done__ = ((ptr) ? 0 : (perror("Error"), 1)), \
+     __cleanup_set = (cleanup_func) ? 0 : (fputs("Cleanup function is NULL\n", stderr), 1); \
+     !__done__ && !__cleanup_set; \
+     __done__ = (cleanup_func(ptr), 1))
+
+#define error_at(x) ({ int __val = (x); (__val == -1 ? \
+({\
+fprintf(stderr,"Error at: (" __FILE__ " line: %d %s)\n",__LINE__, strerror(errno));\
+exit(-1); -1;}) : __val); })
+
+#define swap(x, y)        \
+do {                      \
+    __typeof__(x) _tmp = (x); \
+    (x) = (y);            \
+    (y) = _tmp;           \
+} while (0)
+
+#define size_arr(arr) (sizeof(arr) / sizeof(arr[0]))
+
+#define file_opening_error 1
+#define memory_allocation_error 2
+#define  file_copy_error 3
+#define RANDOMINT_MAX 1024
+
+#define MAX(a, b, type) \
+({                      \
+    type _a = (a);      \
+    type _b = (b);      \
+    _a > _b ? _a : _b;  \
+})
+
+
+#define MIN(a, b, type) \
+({                      \
+    type _a = (a);      \
+    type _b = (b);      \
+    _a < _b ? _a : _b;  \
+})
+
+#define UiarrMap(arr, len, action) do{ \
+   for(size_t i = 0; i < len; i++) { \
+       (arr)[i] = (action((arr)[i])); \
+    }  \
+} while(0)
+
+#define arrInln(arr, len) do{ \
+   size_t i = -1; \
+   while(++i < len && scanf("%d", &arr[i])); \
+}while(0)
+
+#define UiarrFilter(arr, len, condition) do { \
+    size_t j = 0; \
+    for(size_t i = 0; i < len; i++) { \
+        if(condition((arr)[i])) {  \
+            (arr)[j++] = (arr)[i]; \
+        } \
+    } \
+  len = j; \
+} while(0)
+
+#define RED_COLOR "\33[1;31m"
+#define GREEN_COLOR "\33[1;32m"
+#define YELLOW_COLOR "\33[1;33m"
+#define BLUE_COLOR "\33[1;34m"
+#define MAGENTA_COLOR "\33[1;35m"
+#define CYAN_COLOR "\33[1;36m"
+#define RESET_COLOR "\33[00m"
+
+#define UistrTarget(str, size, manipulation, search) do {       \
+    if ((str) && (manipulation)) {                                \
+        if ((search) != NULL) {                                   \
+            char *found = strstr((str), (search));                \
+            if (found != NULL) {                                  \
+                char *end = found + strlen(search);               \
+                char savedChar = *end;                            \
+                *end = '\0';                                      \
+                manipulation(found);                              \
+                *end = savedChar;                                 \
+            }                                                     \
+        } else {                                                  \
+            manipulation(str);                                    \
+        }                                                         \
+    }                                                             \
+} while (0)
+
+#define Typeof(var) _Generic((var), \
+int: "<int>", \
+unsigned int: "<unsigned int>", \
+short: "<short>", \
+unsigned short: "<unsigned short>", \
+long: "<long>", \
+unsigned long: "<unsigned long>", \
+long long: "<long long>", \
+unsigned long long: "<unsigned long long>", \
+char: "<char>", \
+unsigned char: "<unsigned char>", \
+float: "<float>", \
+double: "<double>", \
+long double: "<long double>", \
+void *: "<void*>", \
+const void *: "<const void*>", \
+char *: "char*", \
+const char *: "<const char*>", \
+default: "unknown")
+
+#define __construct__ __attribute__((constructor)) 
+#define __destruct__  __attribute__((destructor))
+#define Prio_struct(prioritize) __attribute__((constructor(prioritize)))
+#define Prio_destruct(prioritize) __attribute__((destructor(prioritize)))
+
+#define Try do { int __err = setjmp(__jmpbuf); if (__err == 0) {
+#define Catch(expression) } else if (__err == (expression)) {
+#define Final } } while (0);
+#define Throw(expression) longjmp(__jmpbuf, (expression))
+jmp_buf __jmpbuf;
+
+
+/* UistrIn: Read a string from standard input until a specified delimiter or maximum size is reached */
+__attribute__((always_inline)) inline long int UistrIn(char *__restrict str, long int size, const char *specifier) {
     if (!str || size <= 0 || !specifier) 
         return -1;
     long int bytes_read = 0;
@@ -193,7 +317,7 @@ int getch(bool only_ch) {
         return -1; 
     if (only_ch) 
         while (read(0, &discard, 1) > 0 && discard != '\n');
-  
+
     return ch;
 }
 
@@ -239,8 +363,8 @@ const char* getColorCode(const char *color) {
     return RESET_COLOR;  // Default to no color if invalid input
 }
 
- /* utilstrHighlite print the line with the pattern highlighted in the specified color */
-__attribute__((always_inline)) inline void utilstrHighlite(const char *line, const char *pattern, const char *color) {
+ /* UistrHighlite print the line with the pattern highlighted in the specified color */
+__attribute__((always_inline)) inline void UistrHighlite(const char *line, const char *pattern, const char *color) {
     if (!line || !pattern || !color) 
       return;
     const char *current = line;  
@@ -254,8 +378,8 @@ __attribute__((always_inline)) inline void utilstrHighlite(const char *line, con
     printf("%s", line);
 }
 
-/* utilreadln: Prompt the user with a message and read a line of input into a dynamically allocated string */
-__attribute__((always_inline)) inline char *utilreadln(const char *prompt) {
+/* Uireadln: Prompt the user with a message and read a line of input into a dynamically allocated string */
+__attribute__((always_inline)) inline char *Uireadln(const char *prompt) {
     if (!prompt) 
         return NULL;
     // Print the prompt to stdout
@@ -268,7 +392,7 @@ __attribute__((always_inline)) inline char *utilreadln(const char *prompt) {
         Throw(memory_allocation_error);
         return NULL;
     }
-    
+
     char ch;
     size_t len = 0;
     while ((read(0, &ch, 1)) != EOF && ch != '\n') {
@@ -289,7 +413,7 @@ __attribute__((always_inline)) inline char *utilreadln(const char *prompt) {
         free(buff);
         return NULL;
     }
-  
+
     buff[len] = '\0';
     return buff;
 }
@@ -333,37 +457,37 @@ size_t strlen_sse(const char *str) {
 }
 
 
-/* utilclear: Clear console screen */
-void utilclear(void) {
+/* Uiclear: Clear console screen */
+void Uiclear(void) {
   fwrite("\033[2J\033[1;1H", sizeof(char), 11, stdout);  
   fwrite("\033c", sizeof(char), 3, stdout); 
 }
 
 
-/* utilfile_read: Read a blocks of content of a file into a buffer */
-__attribute__((always_inline)) inline long int utilfile_read(char *__restrict buffer, size_t size, FILE *__restrict stream) {
+/* Uifile_read: Read a blocks of content of a file into a buffer */
+__attribute__((always_inline)) inline long int Uifile_read(char *__restrict buffer, size_t size, FILE *__restrict stream) {
     if(!buffer || size <= 0 || !stream)
       return -1;
     long int bytesRead = fread(buffer, 1, size - 1, stream);
     if (!bytesRead || ferror(stream)) 
         return perror("Error reading file"), -1;
-  
+
     buffer[bytesRead] = '\0'; 
     return bytesRead;
 }
 
 
-/* utilfilewrite: write blocks of the buffer content into a file */
-__attribute__((always_inline)) inline int utilfile_write(char *__restrict buffer, FILE *__restrict stream) {
+/* Uifilewrite: write blocks of the buffer content into a file */
+__attribute__((always_inline)) inline int Uifile_write(char *__restrict buffer, FILE *__restrict stream) {
     if(!buffer || !stream)
       return -1;
    if(fwrite(buffer, 1, strlen(buffer), stream) <= 0 || ferror(stream)) 
      return perror("Error reading file"), -1;
-   
+
   return 0;
 }
 
-__attribute__((always_inline)) inline int utilfile_append(const char *__restrict src, char *__restrict content) {
+__attribute__((always_inline)) inline int Uifile_append(const char *__restrict src, char *__restrict content) {
     if(!src || !content)
         return -1;
     FILE *ptr = fopen(src, "a");
@@ -374,7 +498,7 @@ __attribute__((always_inline)) inline int utilfile_append(const char *__restrict
     return 0;
 }
 
-/* This is a helper function needed for join function in utilib.h */
+/* This is a helper function needed for join function in Uiib.h */
 size_t length(char **strings, int count, const char *delimiter) {
   size_t total_length = 0;
   size_t delimiter_length = strlen_sse(delimiter);
@@ -389,7 +513,7 @@ size_t length(char **strings, int count, const char *delimiter) {
   return total_length + 1; 
 }
 
-__attribute__((always_inline)) inline void utilstrCaptilize(char *__restrict str) {
+__attribute__((always_inline)) inline void UistrCaptilize(char *__restrict str) {
   if(!str)
     return;
   int word = 0;
@@ -408,7 +532,7 @@ __attribute__((always_inline)) inline void utilstrCaptilize(char *__restrict str
 }
 
 
-__attribute__((always_inline)) inline int utilstrInsert(char *str , char *insert_str, long int pos, long int size_str) {
+__attribute__((always_inline)) inline int UistrInsert(char *str , char *insert_str, long int pos, long int size_str) {
     if(!str || !insert_str || pos <= 0)
       return -1;
    long int len = strlen_sse(str);
@@ -423,8 +547,8 @@ __attribute__((always_inline)) inline int utilstrInsert(char *str , char *insert
 }
 
 
-/* utilLshift: Left shift an array of elements by one position */
-__attribute__((always_inline)) inline void utilLshift(void *arr, size_t datatype_size, size_t size) {
+/* UiLshift: Left shift an array of elements by one position */
+__attribute__((always_inline)) inline void UiLshift(void *arr, size_t datatype_size, size_t size) {
       if (!arr || size <= 0 || !datatype_size)
         return;
 
@@ -434,7 +558,7 @@ __attribute__((always_inline)) inline void utilLshift(void *arr, size_t datatype
          return;
       }
       memcpy(temp, arr, datatype_size); 
-  
+
       memmove(arr, (char*)arr + datatype_size, (size - 1) * datatype_size);
 
       memcpy((char*)arr + (size - 1) * datatype_size, temp, datatype_size);
@@ -442,11 +566,11 @@ __attribute__((always_inline)) inline void utilLshift(void *arr, size_t datatype
 }
 
 
-/* utilRshift: Right shift an array of elements by one position */
-__attribute__((always_inline)) inline void utilRshift(void *arr, size_t datatype_size, size_t size){
+/* UiRshift: Right shift an array of elements by one position */
+__attribute__((always_inline)) inline void UiRshift(void *arr, size_t datatype_size, size_t size){
       if (!arr ||size <= 0 || !datatype_size)
         return;
-     
+
       void *temp = malloc(datatype_size);
       if (!temp) {
         Throw(memory_allocation_error);
@@ -461,8 +585,8 @@ __attribute__((always_inline)) inline void utilRshift(void *arr, size_t datatype
 }
 
 
-/* utilstrReverse: Reverse the sentence of a given string */
-__attribute__((always_inline)) inline char *utilstrReverse(char *str) {
+/* UistrReverse: Reverse the sentence of a given string */
+__attribute__((always_inline)) inline char *UistrReverse(char *str) {
   if(!str)
      return NULL;
   long int len = strlen_sse(str);
@@ -474,61 +598,122 @@ __attribute__((always_inline)) inline char *utilstrReverse(char *str) {
   return str;
 }
 
-/* utilstrTrim: Trim the leading and trailing whitespace from a string */
-__attribute__((always_inline)) inline char *utilstrTrim(char *__restrict str) {
+/* UistrTrim: Trim the leading and trailing whitespace from a string */
+__attribute__((always_inline)) inline char *UistrTrim(char *__restrict str) {
     if (!str) 
         return NULL;
-  
+
     char *start = str, *end = str + strlen_sse(str) - 1;
-    
+
     while (isspace(*start)) 
       start++;
-  
+
     while (end > start && isspace(*end)) 
       end--;
-  
+
       *(end + 1) = '\0';
     memmove(str, start, end - start + 2);
     return str;
 }
 
-/* utilstrTU: Convert a string to uppercase */
-__attribute__((always_inline)) inline char* utilstrTU(char *__restrict str) {
+/* UistrTU: Convert a string to uppercase */
+__attribute__((always_inline)) inline char* UistrTU(char *__restrict str) {
   if(!str)
     return NULL;
   long int i = -1;
        while(str[++i] != '\0') 
          str[i] = toupper(str[i]);
-       
+
       return str;
 }
 
-/* utilstrTL: Convert a string to lowercase */
-__attribute__((always_inline)) inline char* utilstrTL(char *__restrict str) {
+/* UistrTL: Convert a string to lowercase */
+__attribute__((always_inline)) inline char* UistrTL(char *__restrict str) {
    if(!str)
       return NULL;
     long int i = -1;
        while(str[++i] != '\0') 
           str[i] = tolower(str[i]);
-        
+
       return str;
 }
 
-/* utilstrRepc: Replace all occurrences of a character in a string with a another character */
-__attribute__((always_inline)) inline long int utilstrRepc(char *__restrict str, const char oldchar, const char newchar) {
+/*Uiloglist: store information for searching and printing data there can be only one list at a time */
+_Bool Uiloglist(const char *data, int mode) {
+  static char history[1000][100];
+  static int index = 0;
+  _Bool found = false;
+  switch (mode) {
+   case 0: // Add data
+        if (index < 1000) {
+            strncpy(history[index], data, 99);
+            history[index][99] = '\0'; 
+            index++;
+        } else {
+            for (int j = 0; j < 999; j++) {
+                strncpy(history[j], history[j + 1], 99);
+                history[j][99] = '\0'; 
+            }
+            strncpy(history[999], data, 99);
+            history[999][99] = '\0'; 
+        }
+        break;
+  case 1: // print data
+    fputs("History: ", stdout);
+    for (int j = 0; j < index; j++)
+      printf("%d. %s\n", j + 1, history[j]);
+    break;
+  case 2: // delete data
+    for (int j = 0; j < 1000; j++) 
+        history[j][0] = '\0'; 
+    index = 0;
+    break;
+  case 3: // approximate search
+        for (int j = 0; j < index; j++) {
+            if (strstr(history[j], data) != NULL) {
+                found = true;
+                break;
+            }
+        } return found;
+  case 4:// Search and delete data
+       for (int j = 0; j < index; j++) {
+         if (strstr(history[j], data) != NULL) {
+             found = true;
+        // Shift all subsequent entries up to fill the gap
+        for (int k = j; k < index - 1; k++) {
+            strncpy(history[k], history[k + 1], 99);
+            history[k][99] = '\0'; // Ensure null-termination
+        }
+        // Clear the last entry and update the index
+        history[index - 1][0] = '\0', index--;
+        break; // Exit the loop once data is found and deleted
+        }return found;
+      }
+  case 5: //Excat search
+        for(int j = 0;j < index; j++)
+          if(strncmp(history[j], data, 99) == 0) {
+            found = true;
+            break;
+          }
+     return found;
+  }
+}
+
+/* UistrRepc: Replace all occurrences of a character in a string with a another character */
+__attribute__((always_inline)) inline long int UistrRepc(char *__restrict str, const char oldchar, const char newchar) {
     if(!str || !oldchar || !newchar) 
        return -1;
     long int j = -1;
     while(str[++j] != '\0')
       if(str[j] == oldchar)
         str[j] = newchar;
-  
+
   return j;
 }
 
 
-/* utilstrReps: Replace all occurrences of a substing in a string with a another substring */
-__attribute__((always_inline)) inline int utilstrReps(char *__restrict str, long int strsize,const char *oldstr,const char *newstr) {
+/* UistrReps: Replace all occurrences of a substing in a string with a another substring */
+__attribute__((always_inline)) inline int UistrReps(char *__restrict str, long int strsize,const char *oldstr,const char *newstr) {
   if(!str || !oldstr || !newstr || strsize <= 0) // A special thanks to Code vault from youtube who has designed 
       return -1;                                  // This string replacement function youtube: @CodeVault
   char *Temp = NULL;
@@ -546,8 +731,8 @@ __attribute__((always_inline)) inline int utilstrReps(char *__restrict str, long
   return 0;
 }
 
-/* utilstrRep: Replace only one occurrence of a substing in a string with a another substring */
-__attribute__((always_inline)) inline int utilstrRep(char *__restrict str, long int strsize,const char *oldstr,const char *newstr) {
+/* UistrRep: Replace only one occurrence of a substing in a string with a another substring */
+__attribute__((always_inline)) inline int UistrRep(char *__restrict str, long int strsize,const char *oldstr,const char *newstr) {
     if(!str || !oldstr || !newstr || strsize <= 0)  
         return -1;                                   
     char *Temp = strstr(str, oldstr);
@@ -563,8 +748,8 @@ __attribute__((always_inline)) inline int utilstrRep(char *__restrict str, long 
 }
 
 
-/*utilstrFilter: Filter out the unwanted substring's from a string*/
-__attribute__((always_inline)) inline int utilstrFilter(char *__restrict str, const char *__restrict filter) {
+/*UistrFilter: Filter out the unwanted substring's from a string*/
+__attribute__((always_inline)) inline int UistrFilter(char *__restrict str, const char *__restrict filter) {
     if(!str || !filter)
       return -1;
 
@@ -584,7 +769,7 @@ __attribute__((always_inline)) inline void writeln(const char *__restrict format
     fflush(stdout);
     if(write(1, format, strlen_sse(format)) <= 0 || write(1, "\n", 1) <= 0) 
       perror("write");
-  
+
 }
 
 /*readln: A low level function to read a line of string */
@@ -602,8 +787,8 @@ __attribute__((always_inline)) inline long int readln(char *__restrict str, long
     return bytes_read;
 }
 
-/* utilstrjoin: Join an array of strings into a single string, separated by a delimiter */
-__attribute__((always_inline)) inline char* utilstrjoin(char **__restrict strings, int count, const char *__restrict delimiter) {
+/* Uistrjoin: Join an array of strings into a single string, separated by a delimiter */
+__attribute__((always_inline)) inline char* Uistrjoin(char **__restrict strings, int count, const char *__restrict delimiter) {
       if(!strings || !delimiter || !count)
          return NULL;
 
@@ -666,9 +851,9 @@ int compare_string(const void *a, const void *b) {
   return -strcmp(a1, b1);
 }
 
-/*  utilSort: sorts an array based on the given mode ('i' for int, 'd' for double, 'f' for float, 's' for string).
+/*  UiSort: sorts an array based on the given mode ('i' for int, 'd' for double, 'f' for float, 's' for string).
 It uses the qsort function and corresponding comparison functions for different data types. */
-__attribute__((always_inline)) inline void utilSort(void *array, size_t length, const char mode) {
+__attribute__((always_inline)) inline void UiSort(void *array, size_t length, const char mode) {
    if(!array || length <= 0 || !mode)
       return;
 
@@ -692,21 +877,21 @@ __attribute__((always_inline)) inline void utilSort(void *array, size_t length, 
             qsort(array, length, sizeof(char), compare_char);
            break;
         default:
-            fprintf(stderr, "Invalid mode for util_qsort: %c\n", mode);
+            fprintf(stderr, "Invalid mode for Ui_qsort: %c\n", mode);
             break;
     }
 }
 
 
-bool is_odd(int x) { // for utilarrFilter
+bool is_odd(int x) { // for UiarrFilter
     return x % 2 != 0;
 }
 
-bool is_even(int x) { // for utilarrFilter
+bool is_even(int x) { // for UiarrFilter
     return x % 2 == 0;
 }
 
-bool is_prime(int x) { // for utilarrFilter
+bool is_prime(int x) { // for UiarrFilter
    if(x < 2) return false;
    for(int i = 0; i <= sqrt(x); i++){
      if(x % i == 0) return false;
@@ -714,19 +899,19 @@ bool is_prime(int x) { // for utilarrFilter
    return true;
 }
 
-int increment(int x) { // for utilarrmap
+int increment(int x) { // for Uiarrmap
   return x + 1;
 }
 
-int square(int x) {  // for utilarrmap
+int square(int x) {  // for Uiarrmap
   return x * x;
 }
 
-int filter_positive(int x) {  // for utilarrmap
+int filter_positive(int x) {  // for Uiarrmap
   return (x > 0) ? x : 0;
 }
 
-int replace_if_negative(int x) {  // for utilarrmap
+int replace_if_negative(int x) {  // for Uiarrmap
   return (x < 0) ? -x : x;
 }
 
@@ -897,14 +1082,14 @@ __attribute__((always_inline)) inline int Deltaexe(const char *command) {
 }
 
 
-/* utilScan: prompt the user with a message and read value from the standard input. */
-__attribute__((always_inline)) inline long double utilScan(const char *__restrict prompt) {
+/* UiScannner: prompt the user with a message and read value from the standard input. */
+__attribute__((always_inline)) inline long double UiScanner(const char *__restrict prompt) {
     if (!prompt) 
       return -1;
 
     char buff[75], *endptr = NULL;
     double value = 0;
-  
+
     fputs(prompt, stdout);
     fflush(stdout);
     while (1) {
@@ -932,43 +1117,42 @@ long double get_value(void) { // Helper function
 
 
 /* setlimit: Enforce a minimum value of 1 and a maximum value for a given input. */
-long double setlimit(long double utilscan, double max) {
-  while(utilscan <= 0 || utilscan > max) {
+long double setlimit(long double Uiscan, double max) {
+  while(Uiscan <= 0 || Uiscan > max) {
     printf("Invalid input .Please enter a number between 1 and %.1lf: ", max);
-    utilscan = get_value();
+    Uiscan = get_value();
   }
-  return utilscan;
+  return Uiscan;
 }
 
 /* setRange: Enforce a minimum and maximum value for a given input. */
-long double setRange(long double utilscan, double min, double max) {
-  while(utilscan < min || utilscan > max) {
+long double setRange(long double Uiscan, double min, double max) {
+  while(Uiscan < min || Uiscan > max) {
     printf("Invalid input .Please enter a number between %.1lf and %.1lf: ", min, max);
-    utilscan = get_value();
+    Uiscan = get_value();
   }
-  return utilscan;
+  return Uiscan;
 }
 
 /* setlimit_err: Enforce a minimum value of 1 and a maximum value for a given input,
 *           using a custom error message. */
-long double setlimit_err(long double utilscan, double max, const char *__restrict prompt) {
-  while(utilscan <= 0 || utilscan > max) {
+long double setlimit_err(long double Uiscan, double max, const char *__restrict prompt) {
+  while(Uiscan <= 0 || Uiscan > max) {
     fputs(prompt, stdout);
-    utilscan = get_value();
+    Uiscan = get_value();
   }
-  return utilscan;
+  return Uiscan;
 }
 
 /* setRange_err: Enforce a minimum and maximum value for a given input, using a
  *               custom error message. */
-long double setRange_err(long double utilscan, double min, double max, const char *__restrict prompt) {
-  while(utilscan < min || utilscan > max) {
+long double setRange_err(long double Uiscan, double min, double max, const char *__restrict prompt) {
+  while(Uiscan < min || Uiscan > max) {
     fputs(prompt, stdout);
-    utilscan = get_value();
+    Uiscan = get_value();
   }
-  return utilscan;
+  return Uiscan;
 }
-
 
 
 __attribute__((always_inline)) inline int TrybySearch(int arr[], int n, int target) {
@@ -985,9 +1169,9 @@ __attribute__((always_inline)) inline int TrybySearch(int arr[], int n, int targ
     } return -1; 
 }
 
-/* utilRename : rename a file by copying its contents to a new file and deleting the old file.
+/* UiRename : rename a file by copying its contents to a new file and deleting the old file.
 It handles errors in file operations and ensures the old file is unlinked if the copy is successful.*/
-__attribute__((always_inline)) inline void utilRename(const char *__restrict oldfilename, const char *__restrict newfilename) {
+__attribute__((always_inline)) inline void UiRename(const char *__restrict oldfilename, const char *__restrict newfilename) {
   if(!oldfilename || !newfilename)
         return;
 
@@ -1003,17 +1187,17 @@ __attribute__((always_inline)) inline void utilRename(const char *__restrict old
     }
     while (fgets(str, 1024, ptr2) != NULL)
         fputs(str,ptr1);
-  
+
     if (unlink(oldfilename) != 0) 
        perror("Error deleting old file");
-   
+
     fclose(ptr1);
     fclose(ptr2);
 }
 
 
-/* utilwrite: write content to file in a particular index. */
-__attribute__((always_inline)) inline int utilwrite(const char *__restrict filename, long int line, char *__restrict content) {
+/* Uiwrite: write content to file in a particular index. */
+__attribute__((always_inline)) inline int Uiwrite(const char *__restrict filename, long int line, char *__restrict content) {
     if (!filename || line <= 0 || !content)
         return -1;
 
@@ -1087,8 +1271,8 @@ __attribute__((always_inline)) inline int utilwrite(const char *__restrict filen
 }
 
 
-/* utilFind: Find a file in a given directory. */
-__attribute__((always_inline)) inline int utilFind_file(const char *Directory, const char *Filename) {
+/* UiFind: Find a file in a given directory. */
+__attribute__((always_inline)) inline int UiFind_file(const char *Directory, const char *Filename) {
   DIR *dir;
   struct dirent *entry;
 
@@ -1108,8 +1292,8 @@ __attribute__((always_inline)) inline int utilFind_file(const char *Directory, c
 }
 
 
-/* utilDirlist: list out in the console files in a given directory. */
-__attribute__((always_inline)) inline int utilDirlist(const char *Directory) {
+/* UiDirlist: list out in the console files in a given directory. */
+__attribute__((always_inline)) inline int UiDirlist(const char *Directory) {
   DIR *dir;
   struct dirent *entry;
 
@@ -1263,7 +1447,7 @@ __attribute__((noreturn)) void terminate(void) {
     (errno == 0) ? (exit(1)) : (logerror(""), exit(1));
 }
 
-__attribute__((always_inline)) inline void utilfile_stat(const char *filename) {
+__attribute__((always_inline)) inline void Uifile_stat(const char *filename) {
     struct stat file_stat;
     if (stat(filename, &file_stat) == -1) {
         perror("stat");
@@ -1299,17 +1483,17 @@ __attribute__((always_inline)) inline void utilfile_stat(const char *filename) {
 }
 
 
-/* utilCountln: Count the no of lines of a given file */
-__attribute__((always_inline)) inline long int utilCountln(FILE *stream){
+/* UiCountln: Count the no of lines of a given file */
+__attribute__((always_inline)) inline long int UiCountln(FILE *stream){
     if(!stream)
       return -1;
-  
+
     long int count = 0;
     char ch = '\0';
   while((ch = fgetc(stream)) != EOF)
     if(ch == '\n') 
        count++;
-  
+
    if(count == 0)
      return perror("Error"), -1;
     rewind(stream);
@@ -1333,8 +1517,8 @@ FILE *ofstream(const char *filename) {
 }
 
 
-/* utilgetime: get time of the system */
-__attribute__((always_inline)) inline int utilgetime(char *str, long int size) {
+/* Uigetime: get time of the system */
+__attribute__((always_inline)) inline int Uigetime(char *str, long int size) {
   if(!str || size <= 20)
     return fputs("Insufficient size of buffer for getime", stderr), -1;
   time_t rawtime;
@@ -1343,18 +1527,18 @@ __attribute__((always_inline)) inline int utilgetime(char *str, long int size) {
   timeinfo = localtime(&rawtime);
 
   if (strftime(str, size, "%H:%M:%S", timeinfo) == 0) {
-      perror("utilgetime");
+      perror("Uigetime");
       return -1;
   }
   return 0; 
 }
 
-/* utilGetSize: return the size of a file in bytes by seeking to the end of the file and using ftell.
+/* UiGetSize: return the size of a file in bytes by seeking to the end of the file and using ftell.
  It handles errors in file opening and seeking operations. */
-__attribute__((always_inline)) inline long int utilGetSize(FILE *stream) {
+__attribute__((always_inline)) inline long int UiGetSize(FILE *stream) {
     if(!stream)
       return -1;
-   
+
     if(fseek(stream, 0, SEEK_END) != 0)
         return perror("Error: Unable to seek to end of file"), -1;
 
@@ -1363,9 +1547,9 @@ __attribute__((always_inline)) inline long int utilGetSize(FILE *stream) {
     return fileSize;
 }
 
-/* utilFilecpy: copy the contents of one file to another.
+/* UiFilecpy: copy the contents of one file to another.
 It handles errors in file opening and ensures all data is copied successfully. */
-__attribute__((always_inline)) inline int utilFilecpy(const char *__restrict src, const char *__restrict dest) {
+__attribute__((always_inline)) inline int UiFilecpy(const char *__restrict src, const char *__restrict dest) {
   if(!src || !dest) 
       return -1;
     FILE *ptr1 = NULL , *ptr2 = NULL;
@@ -1393,14 +1577,11 @@ __attribute__((always_inline)) inline int utilFilecpy(const char *__restrict src
      Throw(file_copy_error);
      return -1;
    }
-  
+
     fclose(ptr1);
     fclose(ptr2);
 }
 
-
-static int check1 = 0;
-static int check2 = 0;
 
 __attribute__((noreturn)) void dummy(void) {
   fwrite("new: dummy pointer detected\n", sizeof(char), 28, stderr);
@@ -1419,32 +1600,22 @@ __attribute__((noreturn)) void Error(void) {
 }
 
 
-__attribute__((always_inline)) inline static void *new(long size) {
+__attribute__((always_inline)) inline void *new(long size) {
     if (size <= 0) 
         Invalid();
-  
+
     void *ptr = malloc(size);
     if (ptr == NULL)
         Error();
-
-     check1++;
     return ptr;
 }
 
 
-__attribute__((always_inline)) inline static void delete(void *ptr) {
+__attribute__((always_inline)) inline void delete(void *ptr) {
     if (ptr == NULL) 
         dummy();
      free(ptr);
      ptr = NULL;
-     check2++;
-}
-
-
-__attribute__((destructor, noreturn)) void memory_leaks(void) {
-    if (check1 != check2) 
-        fwrite("new: Memory leak detected\n", sizeof(char), 26,stderr);
-        exit(1);
 }
 
 
