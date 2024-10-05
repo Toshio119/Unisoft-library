@@ -15,8 +15,6 @@
 For support, contact: toshiojp119@gmail.com
 ===================================================
 */
-
-
 /*
  * 
  * Usage of these utilities is intended to improve memory management and debugging processes. The functions provided in this header file:
@@ -37,28 +35,6 @@ For support, contact: toshiojp119@gmail.com
  * (c) 2024 Toshio Nayashima
  * All rights reserved.
  */
-
-/*
- * 
- * Usage of these utilities is intended to improve memory management and debugging processes. The functions provided in this header file:
- * - `track_malloc(size_t size)`: Allocates memory of the specified size and tracks the allocation.
- * - `track_free(void *ptr)`: Frees previously allocated memory and removes the tracking information.
- * - `report_memory_leaks(void)`: Reports memory leaks detected at program exit.
- * - `report_memory_usage(void)`: Reports the total amount of memory currently allocated.
- * - `track_fopen(const char *filename, const char *mode)`: Opens a file and tracks the file pointer.
- * - `track_fclose(FILE *file)`: Closes a previously opened file and removes the tracking information.
- * - `report_open_files(void)`: Reports any open file pointers detected at program exit.
- * 
- * The use of `malloc`, `free`, `fopen`, and `fclose` macros redirects memory management calls to the tracking functions, allowing for automated monitoring.
- * 
- * While this tool is intended to assist in debugging and ensuring proper memory management, it is crucial to perform additional checks and tests
- * in production environments. The developers recommend reviewing the usage of this code and ensuring it meets the specific needs and security 
- * requirements of your application.
- * 
- * (c) 2024 Toshio Nayashima
- * All rights reserved.
- */
-
 #ifndef UTILGC_H
 #define UTILGC_H
 
