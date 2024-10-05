@@ -642,7 +642,6 @@ __attribute__((always_inline)) inline char* UistrTL(char *__restrict str) {
 _Bool Uiloglist(const char *data, int mode) {
   static char history[1000][100];
   static int index = 0;
-  _Bool found = false;
   switch (mode) {
    case 0: // Add data
         if (index < 1000) {
@@ -670,15 +669,14 @@ _Bool Uiloglist(const char *data, int mode) {
     break;
   case 3: // approximate search
         for (int j = 0; j < index; j++) {
-            if (strstr(history[j], data) != NULL) {
-                found = true;
-                break;
-            }
-        } return found;
+            if (strstr(history[j], data) != NULL) 
+                return true;
+        } 
+    break;
   case 4:// Search and delete data
        for (int j = 0; j < index; j++) {
          if (strstr(history[j], data) != NULL) {
-             found = true;
+           return true;
         // Shift all subsequent entries up to fill the gap
         for (int k = j; k < index - 1; k++) {
             strncpy(history[k], history[k + 1], 99);
@@ -687,17 +685,17 @@ _Bool Uiloglist(const char *data, int mode) {
         // Clear the last entry and update the index
         history[index - 1][0] = '\0', index--;
         break; // Exit the loop once data is found and deleted
-        }return found;
+        } return true;
       }
+    break;
   case 5: //Excat search
         for(int j = 0;j < index; j++)
           if(strncmp(history[j], data, 99) == 0) {
-            found = true;
-            break;
+            return true;
           }
-     return found;
   }
 }
+
 
 /* UistrRepc: Replace all occurrences of a character in a string with a another character */
 __attribute__((always_inline)) inline long int UistrRepc(char *__restrict str, const char oldchar, const char newchar) {
