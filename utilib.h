@@ -28,7 +28,7 @@
 #include <sys/stat.h>
 #include <stdarg.h>
 #include <immintrin.h>
-#include "utilGc.h"
+
 
 #define true 1
 #define false 0
