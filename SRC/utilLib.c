@@ -1,5 +1,4 @@
 #pragma once
-#include <stdlib.h>
 #include <math.h>
 #include <errno.h>
 #include <unistd.h>
@@ -9,7 +8,9 @@
 #include <dirent.h>
 #include <time.h>
 #include <immintrin.h>
-#include "utilib.h"
+#include <stdlib.h>
+#include "utilLib.h"
+
 
 __attribute__((always_inline)) inline long int UistrIn(char *__restrict str, long int size, const char *specifier) {
     if (!str || size <= 0 || !specifier) 
@@ -48,7 +49,7 @@ __attribute__((always_inline)) inline char** split(const char *str, const char *
 
     char *token = strtok(temp, delimiter);
     while (token) {
-        result = (char**)realloc(result, sizeof(char*) * (*count + 1));
+        result = (char**)Uiresize(result, sizeof(char*) * (*count + 1));
         if(result == NULL) {
           Throw(memory_allocation_error);
         }
@@ -56,10 +57,10 @@ __attribute__((always_inline)) inline char** split(const char *str, const char *
         (*count)++;
         token = strtok(NULL, delimiter);
     }
-    result = (char**)realloc(result, sizeof(char*) * (*count + 1));
+    result = (char**)Uiresize(result, sizeof(char*) * (*count + 1));
     result[*count] = NULL;
 
-    free(temp);
+    Uifree(temp);
     return result;
 }
 
@@ -81,10 +82,20 @@ __attribute__((always_inline)) inline void UistrHighlite(const char *line, const
     while ((current = strstr(current, pattern)) != NULL) {
         printf("%.*s", (int)(current - line), line);
         printf("%s%s%s", colorCode, pattern, RESET_COLOR);
-        current += strlen(pattern);
+        current += strlen_sse(pattern);
         line = current;
     }
     printf("%s", line);
+}
+
+__attribute__((always_inline)) inline char* from(const char* str) {
+    char* new_str = (char*)Uialloc(strlen_sse(str) + 1); // +1 for null-terminator
+    if (!new_str) {
+        fputs("Memory allocation failed!\n", stdout);
+        return NULL;
+    }
+    strcpy(new_str, str);
+    return new_str;
 }
 
 __attribute__((always_inline)) inline char *Uireadln(const char *prompt) {
@@ -95,7 +106,7 @@ __attribute__((always_inline)) inline char *Uireadln(const char *prompt) {
     fflush(stdout);  // Ensure prompt is flushed immediately
 
     size_t size = 128;
-    char *buff = (char *)malloc(size);
+    char *buff = (char *)Uialloc(size);
     if (!buff) {
         Throw(memory_allocation_error);
         return NULL;
@@ -106,9 +117,9 @@ __attribute__((always_inline)) inline char *Uireadln(const char *prompt) {
     while ((read(0, &ch, 1)) != EOF && ch != '\n') {
         if (len + 1 >= size) {
             size *= 2;
-            char *newptr = (char *)realloc(buff, size);
+            char *newptr = (char *)Uiresize(buff, size);
             if (!newptr) {
-                free(buff);
+                Uifree(buff);
                 Throw(memory_allocation_error);
                 return NULL;
             }
@@ -118,7 +129,7 @@ __attribute__((always_inline)) inline char *Uireadln(const char *prompt) {
     }
 
     if (len == 0 && ch == EOF) {
-        free(buff);
+        Uifree(buff);
         return NULL;
     }
 
@@ -126,28 +137,44 @@ __attribute__((always_inline)) inline char *Uireadln(const char *prompt) {
     return buff;
 }
 
-void println(const char *__restrict format, ...) {
-    va_list args;
-    va_list args_copy;
 
+__attribute__((hot)) void println(const char *__restrict format, ...) {
+    char buffer[1024];  // Fixed-size buffer
+    va_list args;
     va_start(args, format);
 
-    va_copy(args_copy, args);
-    long int length = vsnprintf(NULL, 0, format, args_copy);
-    va_end(args_copy);
+    // Calculate the required length for the formatted string
+    int length = vsnprintf(buffer, sizeof(buffer), format, args);
+    if(length <= 0)
+      return; 
+    // Check if the output exceeds the buffer size
+    if (length >= sizeof(buffer)) {
+        // Allocate a larger buffer since the output was too large
+        char dybuffer[length + 2]; // +2 for newline and null terminator
+        // Reset va_list before reusing
+        va_end(args);
+        va_start(args, format);
 
-    char buffer[length + 2];
+        // Format the string again into the larger buffer
+        vsnprintf(dybuffer, length + 1, format, args);  // Fill the dynamic buffer
+        dybuffer[length] = '\n';      // Add newline
+        dybuffer[length + 1] = '\0';  // Null terminate
 
-    vsnprintf(buffer, sizeof(buffer), format, args);
+        // Write the output
+        fwrite(dybuffer, 1, length + 1, stdout);
+    } else {
+        buffer[length] = '\n';      // Add newline
+        buffer[length + 1] = '\0';  // Null terminate
+
+        // Write the output from the fixed buffer
+        fwrite(buffer, 1, length + 1, stdout);
+    }
+
     va_end(args);
-
-    buffer[length] = '\n';
-    buffer[length + 1] = '\0';
-
-    fwrite(buffer, sizeof(char), length + 1, stdout);
 }
 
-size_t strlen_sse(const char *str) {
+
+__attribute__((hot)) size_t strlen_sse(const char *str) {
     const char *start = str;
     __m128i zero = _mm_setzero_si128();
     while (1) {
@@ -162,7 +189,8 @@ size_t strlen_sse(const char *str) {
         str += 16;
     }
 }
-void Uiclear(void) {
+
+__attribute__((hot)) void Uiclear(void) {
   fwrite("\033[2J\033[1;1H", sizeof(char), 11, stdout);  
   fwrite("\033c", sizeof(char), 3, stdout); 
 }
@@ -181,7 +209,7 @@ __attribute__((always_inline)) inline long int Uifile_read(char *__restrict buff
 __attribute__((always_inline)) inline int Uifile_write(char *__restrict buffer, FILE *__restrict stream) {
     if(!buffer || !stream)
       return -1;
-   if(fwrite(buffer, 1, strlen(buffer), stream) <= 0 || ferror(stream)) 
+   if(fwrite(buffer, 1, strlen_sse(buffer), stream) <= 0 || ferror(stream)) 
      return perror("Error reading file"), -1;
 
   return 0;
@@ -199,7 +227,7 @@ __attribute__((always_inline)) inline int Uifile_append(const char *__restrict s
 }
 
 
-size_t length(char **strings, int count, const char *delimiter) {
+__attribute__((hot)) size_t length(char **strings, int count, const char *delimiter) {
   size_t total_length = 0;
   size_t delimiter_length = strlen_sse(delimiter);
 
@@ -251,7 +279,7 @@ __attribute__((always_inline)) inline void UiLshift(void *arr, size_t datatype_s
       if (!arr || size <= 0 || !datatype_size)
         return;
 
-      void *temp = malloc(datatype_size);
+      void *temp = Uialloc(datatype_size);
       if (!temp) {
          Throw(memory_allocation_error);
          return;
@@ -261,14 +289,14 @@ __attribute__((always_inline)) inline void UiLshift(void *arr, size_t datatype_s
       memmove(arr, (char*)arr + datatype_size, (size - 1) * datatype_size);
 
       memcpy((char*)arr + (size - 1) * datatype_size, temp, datatype_size);
-  free(temp);
+  Uifree(temp);
 }
 
 __attribute__((always_inline)) inline void UiRshift(void *arr, size_t datatype_size, size_t size) {
       if (!arr ||size <= 0 || !datatype_size)
         return;
 
-      void *temp = malloc(datatype_size);
+      void *temp = Uialloc(datatype_size);
       if (!temp) {
         Throw(memory_allocation_error);
         return;
@@ -278,7 +306,7 @@ __attribute__((always_inline)) inline void UiRshift(void *arr, size_t datatype_s
       memmove((char*)arr + datatype_size, arr, (size - 1) * datatype_size);
 
       memcpy(arr, temp, datatype_size);
-  free(temp);
+  Uifree(temp);
 }
 
 __attribute__((always_inline)) inline char *UistrReverse(char *str) {
@@ -331,7 +359,7 @@ __attribute__((always_inline)) inline char* UistrTL(char *__restrict str) {
 }
 
 
-_Bool Uiloglist(const char *data, int mode) {
+__attribute__((hot)) _Bool Uiloglist(const char *data, int mode) {
   static char history[1000][100];
   static int index = 0;
   switch (mode) {
@@ -477,7 +505,7 @@ __attribute__((always_inline)) inline char* Uistrjoin(char **__restrict strings,
        return NULL;
 
       size_t total_length = length(strings, count, delimiter);
-      char *result = (char*)malloc(total_length);
+      char *result = (char*)Uialloc(total_length);
       if (result == NULL) {
           Throw(memory_allocation_error);
           exit(1);
@@ -494,45 +522,38 @@ __attribute__((always_inline)) inline char* Uistrjoin(char **__restrict strings,
 }
 
 
-int compare_long(const void *a, const void *b){
+__attribute__((hot)) int cmp_long(const void *a, const void *b){
   long a1 = *(const long *)a;
   long b1 = *(const long *)b;
   return (a1 > b1) - (a1 < b1);
 }
 
 
-int compare_char(const void *a, const void *b){
+__attribute__((hot)) int cmp_char(const void *a, const void *b){
 char a1 = *(const char *)a;
 char b1 = *(const char *)b;
 return (a1 > b1) - (a1 < b1);
 }
 
 
-int compare_float(const void *a, const void *b){
+__attribute__((hot)) int cmp_float(const void *a, const void *b){
 float a1 = *(const float *)a;
 float b1 = *(const float *)b;
 return (a1 > b1) - (a1 < b1);
 }
 
 
-int compare_int(const void *a, const void *b) {
+__attribute__((hot)) int cmp_int(const void *a, const void *b) {
 int a1 = *(const int *)a;
 int b1 = *(const int *)b;
 return (a1 > b1) - (a1 < b1);
 }
 
 
-int compare_double(const void *a, const void *b) {
+__attribute__((hot)) int cmp_double(const void *a, const void *b) {
 double a1 = *(const double *)a;
 double b1 = *(const double *)b;
 return (a1 > b1) - (a1 < b1);
-}
-
-
-int compare_string(const void *a, const void *b) {
-const char *a1 = *(const char **)a;
-const char *b1 = *(const char **)b;
-return -strcmp(a1, b1);
 }
 
 /*  UiSort: sorts an array based on the given mode ('i' for int, 'd' for double, 'f' for float, 's' for string).
@@ -543,23 +564,20 @@ __attribute__((always_inline)) inline void UiSort(void *array, size_t length, co
 
   switch (mode) {
       case 'i': // 'i' for integers 
-          qsort(array, length, sizeof(int), compare_int);
+          qsort(array, length, sizeof(int), cmp_int);
           break;
       case 'd': // 'd' for doubles
-          qsort(array, length, sizeof(double), compare_double);
+          qsort(array, length, sizeof(double), cmp_double);
           break;
       case 'f': // 'f' for floats
-           qsort(array, length, sizeof(float), compare_float);
+           qsort(array, length, sizeof(float), cmp_float);
           break;
       case 's': // 's' for strings
-          qsort(array, length, sizeof(char*), compare_string);
+          qsort(array, length, sizeof(char), cmp_char);
           break;
       case 'l': // 'l' for longs
-          qsort(array, length, sizeof(long), compare_long);
+          qsort(array, length, sizeof(long), cmp_long);
           break;
-      case 'c': // 'c' for charaters
-          qsort(array, length, sizeof(char), compare_char);
-         break;
       default:
           fprintf(stderr, "Invalid mode for Ui_qsort: %c\n", mode);
           break;
@@ -662,17 +680,12 @@ int range = max - min + 1;
 return (addressAsInt % range) + min;
 }
 
-/* buffer for the arrFormat function */
-  
-/* i had to put this here but it look's bad ....*/
-/*compiler will not print any warning's  */
 
 
 /* arrFormat: Formats an array of integers into a string */
 __attribute__((always_inline)) inline char *arrFormat(const int *arr, long size) {
   if(!arr || !size)
     return NULL;
-
   buffer[0] = '[';  
   size_t pos = 1;  
   for (size_t i = 0; i < size; i++) {
@@ -787,7 +800,7 @@ __attribute__((always_inline)) inline long double UiScanner(const char *__restri
 }
 
 
-long double get_value(void) { // Helper function
+__attribute__((hot)) long double get_value(void) { // Helper function
 char buff[75], *end = NULL;
 if(fgets(buff, 75,stdin) != NULL)
   return strtold(buff, &end);
@@ -990,17 +1003,6 @@ return 0;
 }
 
 
-
-/* exe_terminate: This is a function modifier for the logerror if this function is called log error will terminate the function*/
-void exe_terminate(_Bool arg) {
- val = arg;
-}
-
-/* Abort: exit the program with a exit status 1 indicating failure */
-__attribute__((noreturn)) void Abort(void) {
-  exit(1);
-}
-
 void logerror(const char *__restrict msg) { 
 fwrite(msg, sizeof(char), strlen(msg), stderr);
 if(msg[0] != '\0' || !msg)
@@ -1116,11 +1118,6 @@ switch(errno) { // do you know how much pain is counting string length manually 
       fwrite("Unknown error\n", sizeof(char), 14, stderr);
   break;
 }
-
-if(val)
-  Abort();
-else
-  return;
 }
 
 __attribute__((noreturn)) void terminate(void) {
@@ -1181,18 +1178,18 @@ return count;
 } 
 
 __attribute__((always_inline)) inline static FILE *open(const char *filename, const char *mode) {
-  FILE *file = fopen(filename, mode);
+  FILE *file = Uifopen(filename, mode);
   if (file == NULL) 
       Throw(file_opening_error);
 
   return file;
 }
 
-FILE *ifstream(const char *filename) {
+__attribute__((hot)) FILE *ifstream(const char *filename) {
   return open(filename, "r");
 }
 
-FILE *ofstream(const char *filename) {
+__attribute__((hot)) FILE *ofstream(const char *filename) {
   return open(filename, "w");
 }
 
@@ -1230,7 +1227,7 @@ __attribute__((always_inline)) inline long int UiGetSize(FILE *stream) {
 /* UiFilecpy: copy the contents of one file to another.
 It handles errors in file opening and ensures all data is copied successfully. */
 __attribute__((always_inline)) inline int UiFilecpy(const char *__restrict src, const char *__restrict dest) {
-if(!src || !dest) 
+  if(!src || !dest) 
     return -1;
   FILE *ptr1 = NULL , *ptr2 = NULL;
   if ((ptr1 = fopen(src, "r")) == NULL) {
@@ -1260,128 +1257,97 @@ if(!src || !dest)
 
   fclose(ptr1);
   fclose(ptr2);
+  return 0;
 }
 
 
-__attribute__((noreturn)) void dummy(void) {
-fwrite("new: dummy pointer detected\n", sizeof(char), 28, stderr);
-exit(1);
-}
 
-
-__attribute__((noreturn)) void Invalid(void) {
-fwrite("new: Invalid input\n", sizeof(char), 20, stderr);
-exit(1);
-}
-
-__attribute__((noreturn)) void Error(void) {
-perror("new");
-exit(1);
-}
-
-
-__attribute__((always_inline)) inline void *new(long size) {
-  if (size <= 0) 
-      Invalid();
-
-  void *ptr = malloc(size);
-  if (ptr == NULL)
-      Error();
-  return ptr;
-}
-
-
-__attribute__((always_inline)) inline void delete(void *ptr) {
-  if (ptr == NULL) 
-      dummy();
-   free(ptr);
-   ptr = NULL;
-}
-
-
-__attribute__((always_inline)) inline static void* resize(void* oldArray, size_t oldSize, size_t newSize, size_t elemSize) {
-  // Allocate new array
-  void* newArray = new(newSize * elemSize);
-
-  size_t copySize = (oldSize < newSize) ? oldSize : newSize;
-  memcpy(newArray, oldArray, copySize * elemSize);
-
-  if (newSize > oldSize) {
-      memset((char*)newArray + oldSize * elemSize, 0, (newSize - oldSize) * elemSize);
-  }  
-   free(oldArray);
-return newArray;
-}
-
-
-/* Create a linked list usage: Linked list *<label> = createLinkedList(); */
-__attribute__((always_inline)) inline LinkedList* createLinkedList(void) {
-    LinkedList *__restrict list = (LinkedList*)malloc(sizeof(LinkedList));
-    if(list == NULL) {
-       fputs("Error: Memory allocation failed.\n", stderr);
+__attribute__((always_inline)) inline List* createList(size_t data_size) {
+    List* list = (List*)Uialloc(sizeof(List));
+    if (list == NULL) {
+        fputs("Error: Memory allocation failed.\n", stderr);
+        return NULL;
     }
     list->head = NULL;
     list->tail = NULL;
     list->size = 0;
+    list->data_size = data_size;
     return list;
 }
 
 
-/* Add a node to the end of the linked list */
-__attribute__((always_inline)) inline int insertNode(LinkedList *__restrict list, int data, int at_end) { //Helper function 
+__attribute__((always_inline)) inline gNode* createNode(void* data, size_t data_size) {
+    gNode* newNode = (gNode*)Uialloc(sizeof(gNode));
+    if (newNode == NULL) {
+        fputs("Error: Memory allocation failed.\n", stderr);
+        return NULL;
+    }
+    newNode->data = Uialloc(data_size);
+    if (newNode->data == NULL) {
+        fputs("Error: Memory allocation for data failed.\n", stderr);
+        Uifree(newNode);
+        return NULL;
+    }
+    memcpy(newNode->data, data, data_size);
+    newNode->next = NULL;
+    return newNode;
+}
+
+
+__attribute__((always_inline)) inline int append(List* list, void* data) {
     if (list == NULL) {
         fputs("Error: List is NULL.\n", stderr);
         return -1;
     }
 
-    liNode* newNode = (liNode*)malloc(sizeof(liNode));
-    if (newNode == NULL){
-        fputs("Error: Memory allocation failed.\n", stderr);
-    }
-    newNode->data = data;
-    newNode->next = NULL;
+    gNode* newNode = createNode(data, list->data_size);
+    if (newNode == NULL) return -1;
 
     if (list->size == 0) {
         list->head = newNode;
         list->tail = newNode;
-    } else if (at_end) {
+    } else {
         list->tail->next = newNode;
         list->tail = newNode;
-    } else {
-        newNode->next = list->head;
-        list->head = newNode;
     }
-
     list->size++;
     return 0;
 }
 
 
-/* add a element at the end of the list */
-int append(LinkedList *__restrict list, int data) {
-    return insertNode(list, data, 1);
+__attribute__((always_inline)) inline int prepend(List* list, void* data) {
+    if (list == NULL) {
+        fputs("Error: List is NULL.\n", stderr);
+        return -1;
+    }
+
+    gNode* newNode = createNode(data, list->data_size);
+    if (newNode == NULL) return -1;
+
+    if (list->size == 0) {
+        list->head = newNode;
+        list->tail = newNode;
+    } else {
+        newNode->next = list->head;
+        list->head = newNode;
+    }
+    list->size++;
+    return 0;
 }
 
 
-/* add a element to the beggning of the list */
-int prepend(LinkedList *__restrict list, int data) {
-    return insertNode(list, data, 0);
-}
-
-
-/* Remove a element from the list */
-__attribute__((always_inline)) inline int removeElement(LinkedList *__restrict list, int data) {
+__attribute__((always_inline)) inline int removeNode(List* list, void* data, int (*cmp)(const void*, const void*)) {
     if (list == NULL || list->head == NULL) {
         fputs("Error: List is NULL or empty.\n", stderr);
         return -1;
     }
 
-    liNode* current = list->head;
-    liNode* previous = NULL;
+    gNode* current = list->head;
+    gNode* previous = NULL;
 
-    while (current) {
-        if (current->data == data) {
-            if (previous) {
+    while (current != NULL) {
+        if (cmp(data, current->data) == 0) {
+            if (previous != NULL) {
                 previous->next = current->next;
             } else {
                 list->head = current->next;
@@ -1391,7 +1357,8 @@ __attribute__((always_inline)) inline int removeElement(LinkedList *__restrict l
                 list->tail = previous;
             }
 
-            free(current);
+            Uifree(current->data);
+            Uifree(current);
             list->size--;
             return 0;
         }
@@ -1399,56 +1366,57 @@ __attribute__((always_inline)) inline int removeElement(LinkedList *__restrict l
         previous = current;
         current = current->next;
     }
-    fputs("Error: Element not found in the list.\n", stderr);
+
+    fputs("Error: Node not found.\n", stderr);
     return -1;
 }
 
 
-/* Get size of the list */
-size_t getSize(LinkedList *__restrict list) {
-    return (list != NULL) ? list->size : 0;
-}
-
-
-/* print the content's of the list */
-__attribute__((always_inline)) inline void printList(LinkedList *__restrict list) {
+__attribute__((always_inline)) inline void printList(List* list, void (*print_fn)(const void*)) {
     if (list == NULL) {
         fputs("Error: List is NULL.\n", stderr);
         return;
     }
 
-    liNode* current = list->head;
+    gNode* current = list->head;
     fputs("[", stdout);
-    while (current) {
-        printf("%d", current->data);
-        if (current->next) fputs(", ", stdout);
+    while (current != NULL) {
+        print_fn(current->data);
+        if (current->next != NULL) {
+            fputs(", ", stdout);
+        }
         current = current->next;
     }
     fputs("]\n", stdout);
 }
 
 
-/* Free the allocated memory of the list */
-__attribute__((always_inline)) inline void freeList(LinkedList *__restrict list) {
+__attribute__((always_inline)) inline size_t getSize(List* list) {
+    return (list != NULL) ? list->size : 0;
+}
+
+
+__attribute__((always_inline)) inline void freeList(List* list) {
     if (list == NULL) {
         fputs("Error: List is NULL.\n", stderr);
         return;
     }
 
-    liNode* current = list->head;
-    while (current) {
-        liNode* nextNode = current->next;
-        free(current);
+    gNode* current = list->head;
+    while (current != NULL) {
+        gNode* nextNode = current->next;
+        Uifree(current->data);
+        Uifree(current);
         current = nextNode;
-    } 
-    free(list);
+    }
+    Uifree(list);
 }
 
 
-/* Merge Sort Functions for the linked list */
-void splitList(liNode *__restrict source, liNode **__restrict frontRef, liNode **__restrict backRef) { //Helper function 1
-    liNode* fast;
-    liNode* slow;
+
+__attribute__((always_inline)) inline void splitList(gNode* source, gNode** frontRef, gNode** backRef) {
+    gNode* fast;
+    gNode* slow;
     if (source == NULL || source->next == NULL) {
         *frontRef = source;
         *backRef = NULL;
@@ -1471,47 +1439,165 @@ void splitList(liNode *__restrict source, liNode **__restrict frontRef, liNode *
 }
 
 
-liNode* sortedMerge(liNode *__restrict a, liNode *__restrict b) { //Helper function 2
+__attribute__((hot)) gNode* sortedMerge(gNode* a, gNode* b, int (*cmp)(const void*, const void*)) {
     if (a == NULL) return b;
     if (b == NULL) return a;
 
-    if (a->data <= b->data) {
-        a->next = sortedMerge(a->next, b);
+    if (cmp(a->data, b->data) <= 0) {
+        a->next = sortedMerge(a->next, b, cmp);
         return a;
     } else {
-        b->next = sortedMerge(a, b->next);
+        b->next = sortedMerge(a, b->next, cmp);
         return b;
     }
 }
 
 
-liNode* mergeSort(liNode *__restrict head) { //Helper function 3
+__attribute__((hot)) gNode* mergeSort(gNode* head, int (*cmp)(const void*, const void*)) {
     if (head == NULL || head->next == NULL) {
         return head;
     }
 
-    liNode* a;
-    liNode* b;
+    gNode* a;
+    gNode* b;
     splitList(head, &a, &b);
 
-    a = mergeSort(a);
-    b = mergeSort(b);
+    a = mergeSort(a, cmp);
+    b = mergeSort(b, cmp);
 
-    return sortedMerge(a, b);
+    return sortedMerge(a, b, cmp);
 }
 
 
-/* Sort the linked list using merge sort */
-__attribute__((always_inline)) inline void Sortlist(LinkedList *__restrict list) {
+__attribute__((hot)) void Sortlist(List* list, int (*cmp)(const void*, const void*)) {
     if (list == NULL || list->head == NULL) {
         return;
     }
-    list->head = mergeSort(list->head);
+    list->head = mergeSort(list->head, cmp);
 
     // Update tail
-    liNode* current = list->head;
+    gNode* current = list->head;
     while (current->next != NULL) {
         current = current->next;
     }
     list->tail = current;
+}
+
+__attribute__((hot)) int contains(List* list, void* data, int (*cmp)(const void*, const void*)) {
+    if (list == NULL) return 0;
+
+    gNode* current = list->head;
+    while (current != NULL) {
+        if (cmp(current->data, data) == 0) {
+            return 1;  // Data found
+        }
+        current = current->next;
+    }
+    return 0;  // Data not found
+}
+
+
+__attribute__((always_inline)) inline List* intersection(List* list1, List* list2, int (*cmp)(const void*, const void*)) {
+    List* result = createList(list1->data_size);
+
+    gNode* current = list1->head;
+    while (current != NULL) {
+        if (contains(list2, current->data, cmp)) {
+            append(result, current->data);  // Add if in both lists
+        }
+        current = current->next;
+    }
+    return result;
+}
+
+
+__attribute__((always_inline)) inline List* unionList(List* list1, List* list2, int (*cmp)(const void*, const void*)) {
+    List* result = createList(list1->data_size);
+
+    gNode* current = list1->head;
+    while (current != NULL) {
+        append(result, current->data);  // Add all elements from list1
+        current = current->next;
+    }
+
+    current = list2->head;
+    while (current != NULL) {
+        if (!contains(result, current->data, cmp)) {
+            append(result, current->data);  // Add only unique elements from list2
+        }
+        current = current->next;
+    }
+    return result;
+}
+
+
+__attribute__((always_inline)) inline List* difference(List* list1, List* list2, int (*cmp)(const void*, const void*)) {
+    List* result = createList(list1->data_size);
+
+    gNode* current = list1->head;
+    while (current != NULL) {
+        if (!contains(list2, current->data, cmp)) {
+            append(result, current->data);  // Add elements that are in list1 but not in list2
+        }
+        current = current->next;
+    }
+    return result;
+}
+
+
+__attribute__((hot))  char* Listformat(List* list, void (*print_fn)(const void*, char*, size_t)) {
+  if (list == NULL || list->head == NULL) {
+      return from("[]"); // Return an empty list representation
+  }
+
+  size_t bufferSize = 128; // Initial buffer size
+  char* result = (char*)Uialloc(bufferSize); //Uialloc for garbage collection
+  if (result == NULL) {
+      fputs("Error: Memory allocation failed.\n", stderr);
+      return NULL;
+  }
+  result[0] = '\0'; // Initialize the string
+  gNode* current = list->head;
+  strcat(result, "[");
+  while (current != NULL) {
+      char buffer[64]; // Temporary buffer for each element's string representation
+      print_fn(current->data, buffer, sizeof(buffer));
+
+      // Check if we need to expand the result buffer
+      size_t newSize = strlen_sse(result) + strlen_sse(buffer) + 3; // +3 for ", " and closing bracket
+      if (newSize > bufferSize) {
+          bufferSize = newSize * 2; // Double the size
+          result = (char*)Uiresize(result, bufferSize); 
+          if (result == NULL) {
+              fputs("Error: Memory reallocation failed.\n", stderr);
+              return NULL;
+          }
+      }
+
+      strcat(result, buffer);
+
+      if (current->next != NULL) {
+          strcat(result, ", ");
+      }
+      current = current->next;
+  }
+  strcat(result, "]"); // Close the list representation
+  return result;
+}
+
+// Example print functions for different types
+__attribute__((hot)) void Int(const void* data, char* buffer, size_t size) {
+  snprintf(buffer, size, "%d", *(int *)data);
+}
+
+__attribute__((hot)) void Float(const void* data, char* buffer, size_t size) {
+  snprintf(buffer, size, "%.2f", *(float *)data);
+}
+
+__attribute__((hot)) void Double(const void* data, char* buffer, size_t size) {
+  snprintf(buffer, size, "%.2lf", *(double *)data);
+}
+
+__attribute__((hot)) void String(const void* data, char* buffer, size_t size) {
+  snprintf(buffer, size, "%s", (const char *)data); 
 }
