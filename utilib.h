@@ -20,7 +20,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <stdarg.h>
-#include <stdlib.h>
+#include "utilGc.h"
 
 #define true 1
 #define false 0
@@ -135,7 +135,7 @@ default: "unknown")
       
 #define __construct__ __attribute__((constructor)) 
 #define __destruct__  __attribute__((destructor))
-#define Prio_struct(prioritize) __attribute__((constructor(prioritize)))
+#define Prio_construct(prioritize) __attribute__((constructor(prioritize)))
 #define Prio_destruct(prioritize) __attribute__((destructor(prioritize)))
 
 #define Try do { int __err = setjmp(__jmpbuf); if (__err == 0) {
@@ -157,7 +157,7 @@ int getch(bool only_ch);
  char** split(const char *str, const char *delimiter, int *count);
 
 
-
+char *from(const char *str);
 /* Function to get the color code based on user input */
 const char* getColorCode(const char *color);
 
@@ -225,43 +225,43 @@ _Bool Uiloglist(const char *data, int mode);
 
 
 /* UistrReps: Replace all occurrences of a substing in a string with a another substring */
- int UistrReps(char *__restrict str, long int strsize,const char *oldstr,const char *newstr);
+int UistrReps(char *__restrict str, long int strsize,const char *oldstr,const char *newstr);
 
 /* UistrRep: Replace only one occurrence of a substing in a string with a another substring */
 int UistrRep(char *__restrict str, long int strsize,const char *oldstr,const char *newstr);
 
 
 /*UistrFilter: Filter out the unwanted substring's from a string*/
- int UistrFilter(char *__restrict str, const char *__restrict filter);
+int UistrFilter(char *__restrict str, const char *__restrict filter);
 
 /*writeln: A low level function to write a line of string along with a newline */
- void writeln(const char *__restrict format);
+void writeln(const char *__restrict format);
 /*readln: A low level function to read a line of string */
- long int readln(char *__restrict str, long int size);
+long int readln(char *__restrict str, long int size);
 
 /* Uistrjoin: Join an array of strings into a single string, separated by a delimiter */
  char* Uistrjoin(char **__restrict strings, int count, const char *__restrict delimiter);
 
 
-int compare_long(const void *a, const void *b);
+int cmp_long(const void *a, const void *b);
 
 
-int compare_char(const void *a, const void *b);
+int cmp_char(const void *a, const void *b);
 
 
-int compare_float(const void *a, const void *b);
+int cmp_float(const void *a, const void *b);
 
-int compare_int(const void *a, const void *b);
-
-
-int compare_double(const void *a, const void *b);
+int cmp_int(const void *a, const void *b);
 
 
-int compare_string(const void *a, const void *b);
+int cmp_double(const void *a, const void *b);
+
+
+int cmp_string(const void *a, const void *b);
 
 /*  UiSort: sorts an array based on the given mode ('i' for int, 'd' for double, 'f' for float, 's' for string).
 It uses the qsort function and corresponding comparison functions for different data types. */
- void UiSort(void *array, size_t length, const char mode);
+void UiSort(void *array, size_t length, const char mode);
 
 
 bool is_odd(int x);
@@ -284,23 +284,20 @@ int factorial(int n);
 double calculate_mean(int arr[], int n);
 
 
- void arrIn(int *arr, long size);
+void arrIn(int *arr, long size);
 
 void filterNumbers(const char *input, char *output);
 
 static int arrindex = 0;
 
 static  int randomint(int min, int max);
-/* buffer for the arrFormat function */
-char buffer[1024];  
-/* i had to put this here but it look's bad ....*/
-/*compiler will not print any warning's  */
 
 
+char buffer[1024];
 /* arrFormat: Formats an array of integers into a string */
- char *arrFormat(const int *arr, long size);
+char *arrFormat(const int *arr, long size);
 
- int arrOut(int *arr, long len);
+int arrOut(int *arr, long len);
 
 
 typedef struct store { 
@@ -316,11 +313,11 @@ const char *getshelltype(void);
 
 /* Deltaexe: execute a shell command using fork and execl in a child process.
 It handles errors during fork, execl, and waits for the child process to complete. */
-  int Deltaexe(const char *command);
+int Deltaexe(const char *command);
 
 
 /* UiScannner: prompt the user with a message and read value from the standard input. */
-  long double UiScanner(const char *__restrict prompt);
+long double UiScanner(const char *__restrict prompt);
 
 
 long double get_value(void);
@@ -340,7 +337,7 @@ long double setlimit_err(long double Uiscan, double max, const char *__restrict 
 long double setRange_err(long double Uiscan, double min, double max, const char *__restrict prompt);
 
 
- int TrybySearch(int arr[], int n, int target);
+int TrybySearch(int arr[], int n, int target);
 
 /* UiRename : rename a file by copying its contents to a new file and deleting the old file.
 It handles errors in file operations and ensures the old file is unlinked if the copy is successful.*/
@@ -352,11 +349,11 @@ It handles errors in file operations and ensures the old file is unlinked if the
 
 
 /* UiFind: Find a file in a given directory. */
- int UiFind_file(const char *Directory, const char *Filename);
+int UiFind_file(const char *Directory, const char *Filename);
 
 
 /* UiDirlist: list out in the console files in a given directory. */
- int UiDirlist(const char *Directory);
+int UiDirlist(const char *Directory);
 
 
 _Bool val = false;
@@ -370,7 +367,7 @@ void logerror(const char *__restrict msg);
 
 void terminate(void);
 
- void Uifile_stat(const char *filename);
+void Uifile_stat(const char *filename);
 
 
 /* UiCountln: Count the no of lines of a given file */
@@ -391,79 +388,85 @@ FILE *ofstream(const char *filename);
 
 /* UiFilecpy: copy the contents of one file to another.
 It handles errors in file opening and ensures all data is copied successfully. */
- int UiFilecpy(const char *__restrict src, const char *__restrict dest);
+int UiFilecpy(const char *__restrict src, const char *__restrict dest);
 
 
-void dummy(void);
+typedef struct gNode {
+    void* data;
+    struct gNode* next;
+} gNode;
 
-
-void Invalid(void);
-
-void Error(void);
-
-
- void *new(long size);
-
-
- void delete(void *ptr);
-
-
- static void* resize(void* oldArray, size_t oldSize, size_t newSize, size_t elemSize);
-
-
-typedef struct liNode {
-    int data;
-    struct liNode* next;
-} liNode;
-
-typedef struct LinkedList {
-    liNode* head;
-    liNode* tail;
+typedef struct GenericLinkedList {
+    gNode* head;
+    gNode* tail;
     size_t size;
-} LinkedList;
+    size_t data_size;
+} List;
 
 
-/* Create a linked list usage: Linked list *<label> = createLinkedList(); */
- LinkedList* createLinkedList(void);
+/* Create a linked list usage: List *<label> = createList(); */
+List* createList(size_t data_size);
 
 
 /* Add a node to the end of the linked list */
- int insertNode(LinkedList *__restrict list, int data, int at_end);
+gNode* createNode(void* data, size_t data_size);
 
 
-/* add a element at the end of the list */
-int append(LinkedList *__restrict list, int data);
+/* Add a node to the end of the linked list */
+int append(List*__restrict list, void*__restrict data);
 
-/* add a element to the beggning of the list */
-int prepend(LinkedList *__restrict list, int data);
+/* Add a node to the beginning of the linked list */
+int prepend(List*__restrict list, void*__restrict data);
 
 /* Remove a element from the list */
- int removeElement(LinkedList *__restrict list, int data);
+int removeNode(List*__restrict list, void*__restrict data, int (*cmp)(const void*, const void*));
 
 
 /* Get size of the list */
-size_t getSize(LinkedList *__restrict list);
+size_t getSize(List* list);
 
 /* print the content's of the list */
-  void printList(LinkedList *__restrict list);
+void printList(List* list, void (*print_fn)(const void*));
 
 
 /* Free the allocated memory of the list */
- void freeList(LinkedList *__restrict list);
+void freeList(List* list);
 
 
 /* Merge Sort Functions for the linked list */
-void splitList(liNode *__restrict source, liNode **__restrict frontRef, liNode **__restrict backRef);
+void splitList(gNode*__restrict source, gNode**__restrict frontRef, gNode**__restrict backRef);
 
 
-liNode* sortedMerge(liNode *__restrict a, liNode *__restrict b);
+gNode* sortedMerge(gNode*__restrict a, gNode*__restrict b, int (*cmp)(const void*, const void*));
 
 
-liNode* mergeSort(liNode *__restrict head);
+gNode* mergeSort(gNode*__restrict head, int (*cmp)(const void*, const void*));
 
 
 /* Sort the linked list using merge sort */
- void Sortlist(LinkedList *__restrict list);
+void Sortlist(List*__restrict list, int (*cmp)(const void*, const void*));
+
+/* Search a element in the linked list */
+int contains(List*__restrict list, void*__restrict data, int (*cmp)(const void*, const void*));
 
 
+/* Intersection of two lists */
+List* intersection(List*__restrict list1, List*__restrict list2, int (*cmp)(const void*, const void*));
+
+/* Union of two lists */
+List* unionList(List*__restrict list1, List*__restrict list2, int (*cmp)(const void*, const void*));
+
+/* Example: Find the difference between two lists (list1 - list2) */
+List* difference(List*__restrict list1, List*__restrict list2, int (*cmp)(const void*, const void*));
+
+/* Format the list for eaizer printing using println it has garbage collection (List format has some overhead)*/
+char* Listformat(List* list, void (*print_fn)(const void*, char*, size_t));
+
+void Int(const void* data, char* buffer, size_t size);
+
+void Float(const void* data, char* buffer, size_t size);
+
+void Double(const void* data, char* buffer, size_t size);
+
+void String(const void* data, char* buffer, size_t size);
 #endif //UTILIB_H
